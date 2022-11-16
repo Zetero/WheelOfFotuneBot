@@ -8,7 +8,7 @@ cur = None
 
 def AddUserToDB(id):
     id = str(id)
-    conn = sqlite3.connect("DATABASEs\\users.db")
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     cur = conn.cursor()
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE userid = {id})
@@ -21,23 +21,44 @@ def AddUserToDB(id):
         conn.commit()
 
 def InfoAboutUser(id):
-    conn = sqlite3.connect("DATABASEs\\users.db")
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     cur = conn.cursor()
-    res = cur.execute(f"SELECT countwin, countlose FROM users WHERE userid = '{id}'")
-    countwin, countlose = res.fetchone()
-    return countwin, countlose
+    res = cur.execute(f"""
+        SELECT EXISTS(SELECT * FROM users WHERE userid = {id})
+    """)
+    if res.fetchone()[0] == 1:
+        new_res = cur.execute(f"SELECT countwin, countlose FROM users WHERE userid = '{id}'")
+        countwin, countlose = new_res.fetchone()
+        return countwin, countlose
+    else:
+        return list(['USER_NOT_FOUND', 'USER_NOT_FOUND'])
+
+def AllInfoAboutUser(id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    cur = conn.cursor()
+    res = cur.execute(f"""
+        SELECT EXISTS(SELECT * FROM users WHERE userid = {id})
+    """)
+    if res.fetchone()[0] == 1:
+        new_res = cur.execute(f"SELECT userid, countwin, countlose, state, session FROM users WHERE userid = '{id}'")
+        all_info = list(new_res.fetchone())
+        return all_info
+    else:
+        return list(['USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND'])
 
 def RecreateDBs():
     dirname = os.path.dirname(__file__)
-    shutil.rmtree(dirname + "\\DATABASEs", ignore_errors = True)
+    if os.path.exists(dirname + "\\DATABASEs"):
+        shutil.rmtree(dirname + "\\DATABASEs", ignore_errors = True)
     print("DATABASE CLEAR")
+    
     CreateDBs()
 
 def CreateDBs():
     dirname = os.path.dirname(__file__)
     if (os.path.exists(dirname + "\\DATABASEs")) == False:
         os.mkdir(dirname + "\\DATABASEs")
-        conn = sqlite3.connect(dirname + "\\DATABASEs\\" + "users.db")
+        conn = sqlite3.connect(dirname + "\\DATABASEs\\" + "Users-Sessions-Questions-Tables.db")
         cur = conn.cursor()
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS users(
@@ -45,21 +66,29 @@ def CreateDBs():
             countwin TEXT,
             countlose TEXT,
             state INT,
-            sessoin TEXT);
+            session TEXT);
         """)
         print("USERS DATABASE CREATE")
         conn.commit()
 
         cur.executescript("""
-        CREATE TABLE IF NOT EXISTS users(
-            userid TEXT,
-            countwin TEXT,
-            countlose TEXT,
-            state INT,
-            sessoin TEXT);
+        CREATE TABLE IF NOT EXISTS sessions(
+            id TEXT,
+            answer_id TEXT,
+            player_1_id TEXT,
+            player_2_id TEXT);
         """)
-        print("USERS DATABASE CREATE")
+        print("USERS SESSIONS CREATE")
+        conn.commit()
+
+        cur.executescript("""
+        CREATE TABLE IF NOT EXISTS questions(
+            id TEXT,
+            answer TEXT,
+            text_question TEXT);
+        """)
+        print("USERS QUESTIONS CREATE")
         conn.commit()
 
 if __name__ == "__main__":
-    CreateDBs()
+    RecreateDBs()
