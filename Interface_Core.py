@@ -1,6 +1,5 @@
 #-*- coding: utf-8 -*-
 from enum import Enum
-import random as r
 import re
 
 STOPGAMEWORD = "GG"
@@ -67,4 +66,4 @@ if __name__ == "__main__":
     answer = "Кошелек"
     question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
     word = ""
-    NextRound()
+    #NextRound()
