@@ -2,6 +2,8 @@
 import telebot
 from telebot import types
 import SQL_Core
+import re
+import Interface_Core
 
 DATABASE_RECREATE_COMMAND = "12345"
 FULL_INFO_COMMAND = "54321"
@@ -43,8 +45,21 @@ def SendInfo(message):
 def SendFullInfo(message):
     clientId = message.chat.id
     all_info = SQL_Core.AllInfoAboutUser(clientId)
+    state = ''
+    if all_info[3] == -3:
+        state = 'Empty session'
+    elif all_info[3] == -2:
+        state = 'Loser'
+    elif all_info[3] == -1:
+        state = 'Surrender'
+    elif all_info[3] == 0:
+        state = 'NewLetter'
+    elif all_info[3] == 1:
+        state = 'NextStep'
+    elif all_info[3] == 2:
+        state = 'Winner'
     bot.send_message(chat_id = clientId, text = f"Info:\nID: {str(all_info[0])}\nCount Win: {str(all_info[1])}\n\
-Count Lose: {str(all_info[2])}\nState: {str(all_info[3])}\nSession: {str(all_info[4])}\n", parse_mode = "Markdown")
+Count Lose: {str(all_info[2])}\nState: {str(state)}\nSession: {str(all_info[4])}\n", parse_mode = "Markdown")
 
 @bot.message_handler(commands = [DATABASE_RECREATE_COMMAND])
 def ClearDBs(message):
@@ -55,8 +70,11 @@ def ClearDBs(message):
 @bot.message_handler()
 def Msg_Handler(message):
     clientId = message.chat.id
-    SQL_Core.NewGame(clientId, message.text)
-    bot.send_message(chat_id = clientId, text = message.text, parse_mode = "Markdown")
+    if len(message.text) == 4:
+        SQL_Core.NewGame(clientId, message.text)
+    else:
+        ###
+        bot.send_message(chat_id = clientId, text = "Не понимаю что вы ввели :(", parse_mode = "Markdown")
 
 if __name__ == "__main__":
     print("START TELEGRAMM BOT")

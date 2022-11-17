@@ -54,8 +54,16 @@ def AddNewSession(id):
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE id = {id});
     """)
+    conn.commit()
     if res.fetchone()[0] == 1:
-        token = GenerateToken()
+        new_token = False
+        token = ''
+        while new_token == False:
+            token = GenerateToken()
+            new_res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
+            if new_res[0] == 0:
+                new_token = True
+
         cur.execute(f"""
         INSERT INTO sessions VALUES
         ('{token}', 'Кошелек', {id}, -1);
@@ -75,64 +83,90 @@ def NewGame(id, token):
     id = str(id)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     cur = conn.cursor()
-    res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';")
-    if id != int(res.fetchone()[0]):
+    res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
+    conn.commit()
+    player_1_id = res[0]
+    player_2_id = id
+    print(player_1_id)
+
+    if str(player_2_id) != str(player_1_id):
         res = cur.execute(f"""
             SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
         """)
         if res.fetchone()[0] == 1:
-            new_new_res = cur.execute(f"""
+            first_player = r.randint(0,1)
+            new_res = cur.execute(f"""
             UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
             """)
             conn.commit()
-
-            new_new_res = cur.execute(f"""
+            new_res = cur.execute(f"""
             UPDATE users SET session = '{token}' WHERE id = '{id}'
             """)
             conn.commit()
+            if first_player == 0:
+                new_res = cur.execute(f"""
+                UPDATE users SET state = 0 WHERE id = '{player_1_id}'
+                """)
+                conn.commit()
+                new_res = cur.execute(f"""
+                UPDATE users SET state = 1 WHERE id = '{player_2_id}'
+                """)
+                conn.commit()
+            else:
+                new_res = cur.execute(f"""
+                UPDATE users SET state = 0 WHERE id = '{player_2_id}'
+                """)
+                conn.commit()
+                new_res = cur.execute(f"""
+                UPDATE users SET state = 1 WHERE id = '{player_1_id}'
+                """)
+                conn.commit()
 
 def Surrender(id):
     id = str(id)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     cur = conn.cursor()
+
     res = cur.execute(f"""
         SELECT session FROM users WHERE id = '{id}'
-    """)
-    id_session = list(res.fetchone())[0]
-    res = cur.execute(f"""
-        SELECT player_1_id, player_2_id FROM sessions WHERE id = '{id_session}'
-    """)
-    player_1_id, player_2_id = res.fetchone()
-    print(player_1_id)
-    print(player_2_id)
-    if ((id_session != '-1') and (player_2_id != '-1')):
-        if str(id) == str(player_1_id):
-            print("SURRENDER 1")
-            countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_1_id}'").fetchone()
-            countlose = str(int(countlose[0]) + 1)
-            res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_1_id}'")
-            countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_2_id}'").fetchone()
-            countwin = str(int(countwin[0]) + 1)
-            res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_2_id}'")
-            conn.commit()
-        elif str(id) == str(player_2_id):
-            print("SURRENDER 2")
-            countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_2_id}'").fetchone()
-            countlose = str(int(countlose[0]) + 1)
-            res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_2_id}'")
-            conn.commit()
-            countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_1_id}'").fetchone()
-            countwin = str(int(countwin[0]) + 1)
-            res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_1_id}'")
-            conn.commit()
+    """).fetchone()
+    conn.commit()
+    id_session = res[0]
+    if(str(id_session) != '-1'):
+        res = cur.execute(f"""
+            SELECT player_1_id, player_2_id FROM sessions WHERE id = '{id_session}'
+        """).fetchone()
+        player_1_id, player_2_id = res
+        print(player_1_id)
+        print(player_2_id)
+        if ((id_session != '-1') and (player_2_id != '-1')):
+            if str(id) == str(player_1_id):
+                print("SURRENDER 1")
+                countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_1_id}'").fetchone()
+                countlose = str(int(countlose[0]) + 1)
+                res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_1_id}'")
+                countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_2_id}'").fetchone()
+                countwin = str(int(countwin[0]) + 1)
+                res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_2_id}'")
+                conn.commit()
+            elif str(id) == str(player_2_id):
+                print("SURRENDER 2")
+                countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_2_id}'").fetchone()
+                countlose = str(int(countlose[0]) + 1)
+                res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_2_id}'")
+                conn.commit()
+                countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_1_id}'").fetchone()
+                countwin = str(int(countwin[0]) + 1)
+                res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_1_id}'")
+                conn.commit()
 
-        res = cur.execute(f"UPDATE users SET session = '-1' WHERE id = '{player_1_id}'")
-        conn.commit()
-        res = cur.execute(f"UPDATE users SET session = '-1' WHERE id = '{player_2_id}'")
-        conn.commit()
-        DeleteSession(player_1_id)
-    elif (id_session != '-1'):
-        DeleteSession(player_1_id)
+            res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_1_id}'")
+            conn.commit()
+            res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_2_id}'")
+            conn.commit()
+            DeleteSession(player_1_id)
+        elif (id_session != '-1'):
+            DeleteSession(player_1_id)
             
 def DeleteSession(id):
     id = str(id)
@@ -190,9 +224,8 @@ def CreateDBs():
 
 def GenerateToken():
     token = ''
-    print(ord('Z'))
     for i in range(4):
-        token += chr(r.randint(65,91))
+        token += chr(r.randint(97,122))
     return token
 
 if __name__ == "__main__":

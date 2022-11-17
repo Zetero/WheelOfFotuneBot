@@ -9,7 +9,7 @@ question = "В Греции на новый год гости кладут на 
 word = ""
 
 class State(Enum):
-    EmptySession = -3
+    EmptySession = -3 
     Loser = -2
     Surrender = -1
     NewLetter = 0
