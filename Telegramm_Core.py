@@ -41,6 +41,11 @@ def SendInfo(message):
     token = SQL_Core.AddNewSession(clientId)
     bot.send_message(chat_id = clientId, text = "Ваш токен: "+ token, parse_mode = "Markdown")
 
+@bot.message_handler(commands = ["q"])
+def SendInfo(message):
+    clientId = message.chat.id
+    SendQuestion(clientId, None)
+
 @bot.message_handler(commands = [FULL_INFO_COMMAND])
 def SendFullInfo(message):
     clientId = message.chat.id
@@ -76,6 +81,18 @@ def Msg_Handler(message):
         ###
         bot.send_message(chat_id = clientId, text = "Не понимаю что вы ввели :(", parse_mode = "Markdown")
 
+def SendQuestion(id1, id2):
+    question = SQL_Core.GetQuestion(id1)
+    if id1 != None:
+        bot.send_message(chat_id = id1, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
+    if id2 != None:
+        bot.send_message(chat_id = id2, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
+
+def SendMessage(id, text):
+    bot.send_message(chat_id = id, text = f"{text}", parse_mode = "Markdown")
+
 if __name__ == "__main__":
+    SQL_Core.RecreateDBs()
     print("START TELEGRAMM BOT")
     bot.polling(none_stop = True)
+    

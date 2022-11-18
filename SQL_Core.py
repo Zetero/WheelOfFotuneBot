@@ -2,15 +2,17 @@
 import sqlite3
 import os
 import shutil
+import Telegramm_Core
 import random as r
 
-conn = None
-cur = None
+answer = "Кошелек"
+text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
 
 def AddUserToDB(id):
-    id = str(id)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
+    id = str(id)
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE id = {id})
     """)
@@ -19,11 +21,13 @@ def AddUserToDB(id):
         INSERT INTO users VALUES
         ({id},0,0,-3,-1)
         """)
-        conn.commit()
+        ## DEL THIS ##
 
 def InfoAboutUser(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
+    id = str(id)
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE id = {id})
     """)
@@ -36,7 +40,9 @@ def InfoAboutUser(id):
 
 def AllInfoAboutUser(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
+    id = str(id)
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE id = {id})
     """)
@@ -48,13 +54,14 @@ def AllInfoAboutUser(id):
         return list(['USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND'])
 
 def AddNewSession(id):
-    id = str(id)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
+    id = str(id)
     res = cur.execute(f"""
         SELECT EXISTS(SELECT * FROM users WHERE id = {id});
     """)
-    conn.commit()
+    ## DEL THIS ##
     if res.fetchone()[0] == 1:
         new_token = False
         token = ''
@@ -64,73 +71,123 @@ def AddNewSession(id):
             if new_res[0] == 0:
                 new_token = True
 
+        # 1 - сделанный мной индекс
+        res = cur.execute(f"SELECT answer FROM questions WHERE id = '1'").fetchone()
+        answer_2 = res[0]
+        current_word = len(answer) * "□"
+        print(current_word)  
+
         cur.execute(f"""
         INSERT INTO sessions VALUES
-        ('{token}', 'Кошелек', {id}, -1);
+        ('{token}', '{current_word}', '1', {id}, -1);
         """)
         print("SESSION GOOD")
-        conn.commit()
+        ## DEL THIS ##
 
         cur.execute(f"""
         UPDATE users SET session = '{token}' WHERE id = {id}
         """)
-        conn.commit()
+        ## DEL THIS ##
         return token
     else:
         return 'USER_NOT_FOUND'
 
-def NewGame(id, token):
-    id = str(id)
+def DeleteSession(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
-    res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
-    conn.commit()
-    player_1_id = res[0]
-    player_2_id = id
-    print(player_1_id)
+    id = str(id)
+    res = cur.execute(f"""
+        DELETE FROM sessions WHERE player_1_id = '{id}';
+    """)
+    print("DELETED")
+    ## DEL THIS ##
 
-    if str(player_2_id) != str(player_1_id):
-        res = cur.execute(f"""
-            SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
-        """)
-        if res.fetchone()[0] == 1:
-            first_player = r.randint(0,1)
-            new_res = cur.execute(f"""
-            UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
+def GetQuestion(id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    id = str(id)
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
+    if res[0] == 1:
+        res = cur.execute(f"SELECT session, state FROM users WHERE id = '{id}'").fetchone()
+        print(res[0])
+        print(res[1])
+        if str(res[0]) != '-1' and str(res[1]) != '-3':
+            res = cur.execute(f"SELECT answer_id FROM sessions WHERE id = '{res[0]}'").fetchone()
+            print(res[0])
+            res = cur.execute(f"SELECT text_question FROM questions WHERE id = '{res[0]}'").fetchone()
+            print(res[0])
+            return str(res[0])
+        else:
+            return "Чтобы получить вопрос - сначала начните игру!"
+
+def NewGame(id, token):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    id = str(id)
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
+    if res[0] == 1:
+        res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
+        ## DEL THIS ##
+        player_1_id = res[0]
+        player_2_id = id
+        print(player_1_id)
+
+        if str(player_2_id) != str(player_1_id):
+            res = cur.execute(f"""
+                SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
             """)
-            conn.commit()
-            new_res = cur.execute(f"""
-            UPDATE users SET session = '{token}' WHERE id = '{id}'
-            """)
-            conn.commit()
-            if first_player == 0:
+            ## DEL THIS ##
+
+            if res.fetchone()[0] == 1:
+                first_player = r.randint(0,1)
+
                 new_res = cur.execute(f"""
-                UPDATE users SET state = 0 WHERE id = '{player_1_id}'
+                UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
                 """)
-                conn.commit()
+                ## DEL THIS ##
+
                 new_res = cur.execute(f"""
-                UPDATE users SET state = 1 WHERE id = '{player_2_id}'
+                UPDATE users SET session = '{token}' WHERE id = '{id}'
                 """)
-                conn.commit()
-            else:
-                new_res = cur.execute(f"""
-                UPDATE users SET state = 0 WHERE id = '{player_2_id}'
-                """)
-                conn.commit()
-                new_res = cur.execute(f"""
-                UPDATE users SET state = 1 WHERE id = '{player_1_id}'
-                """)
-                conn.commit()
+                ## DEL THIS ##
+
+                if first_player == 0:
+                    new_res = cur.execute(f"""
+                    UPDATE users SET state = 0 WHERE id = '{player_1_id}'
+                    """)
+                    ## DEL THIS ##
+
+                    new_res = cur.execute(f"""
+                    UPDATE users SET state = 1 WHERE id = '{player_2_id}'
+                    """)
+                    ## DEL THIS ##
+                else:
+                    new_res = cur.execute(f"""
+                    UPDATE users SET state = 0 WHERE id = '{player_2_id}'
+                    """)
+                    ## DEL THIS ##
+
+                    new_res = cur.execute(f"""
+                    UPDATE users SET state = 1 WHERE id = '{player_1_id}'
+                    """)
+                    ## DEL THIS ##
+        else:
+            Telegramm_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
+    else:
+        Telegramm_Core.SendMessage(id, "Такой сессии не существует..")
 
 def Surrender(id):
-    id = str(id)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
     cur = conn.cursor()
-
+    id = str(id)
     res = cur.execute(f"""
         SELECT session FROM users WHERE id = '{id}'
     """).fetchone()
-    conn.commit()
+    ## DEL THIS ##
     id_session = res[0]
     if(str(id_session) != '-1'):
         res = cur.execute(f"""
@@ -148,44 +205,26 @@ def Surrender(id):
                 countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_2_id}'").fetchone()
                 countwin = str(int(countwin[0]) + 1)
                 res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_2_id}'")
-                conn.commit()
+                ## DEL THIS ##
             elif str(id) == str(player_2_id):
                 print("SURRENDER 2")
                 countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_2_id}'").fetchone()
                 countlose = str(int(countlose[0]) + 1)
                 res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_2_id}'")
-                conn.commit()
+                ## DEL THIS ##
                 countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_1_id}'").fetchone()
                 countwin = str(int(countwin[0]) + 1)
                 res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_1_id}'")
-                conn.commit()
+                ## DEL THIS ##
 
             res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_1_id}'")
-            conn.commit()
+            ## DEL THIS ##
             res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_2_id}'")
-            conn.commit()
+            ## DEL THIS ##
             DeleteSession(player_1_id)
         elif (id_session != '-1'):
             DeleteSession(player_1_id)
             
-def DeleteSession(id):
-    id = str(id)
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    cur = conn.cursor()
-    res = cur.execute(f"""
-        DELETE FROM sessions WHERE player_1_id = '{id}';
-    """)
-    print("DELETED")
-    conn.commit()
-
-def RecreateDBs():
-    dirname = os.path.dirname(__file__)
-    if os.path.exists(dirname + "\\DATABASEs"):
-        shutil.rmtree(dirname + "\\DATABASEs", ignore_errors = True)
-    print("DATABASE CLEAR")
-    
-    CreateDBs()
-
 def CreateDBs():
     dirname = os.path.dirname(__file__)
     if (os.path.exists(dirname + "\\DATABASEs")) == False:
@@ -201,17 +240,18 @@ def CreateDBs():
             session TEXT);
         """)
         print("USERS DATABASE CREATE")
-        conn.commit()
+        ## DEL THIS ##
 
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS sessions(
             id TEXT,
+            current_word TEXT,
             answer_id TEXT,
             player_1_id TEXT,
             player_2_id TEXT);
         """)
         print("USERS SESSIONS CREATE")
-        conn.commit()
+        ## DEL THIS ##
 
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS questions(
@@ -220,7 +260,22 @@ def CreateDBs():
             text_question TEXT);
         """)
         print("USERS QUESTIONS CREATE")
-        conn.commit()
+        ## DEL THIS ##
+
+        cur.executescript(f"""
+        INSERT INTO questions VALUES
+        ('1','{answer}', '{text_question}');
+        """)
+        ## DEL THIS ##
+        print("QUESTION 1 READY")
+
+def RecreateDBs():
+    dirname = os.path.dirname(__file__)
+    if os.path.exists(dirname + "\\DATABASEs"):
+        shutil.rmtree(dirname + "\\DATABASEs", ignore_errors = True)
+    print("DATABASE CLEAR")
+    
+    CreateDBs()
 
 def GenerateToken():
     token = ''
