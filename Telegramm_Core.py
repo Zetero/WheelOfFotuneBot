@@ -8,7 +8,7 @@ import Interface_Core
 DATABASE_RECREATE_COMMAND = "12345"
 FULL_INFO_COMMAND = "54321"
 
-bot = telebot.TeleBot(token = "5402715304:AAGqXbYSTkiC6GCvD7OCUJP57dbW_-jK704")
+bot = telebot.TeleBot(token = "")
 
 @bot.message_handler(commands = ["start"])
 def CreateUserTable(message):
