@@ -73,6 +73,7 @@ def NextRound(id, letter):
     #         if letter == STOPGAMEWORD:
     #             current_state = State.Surrender
 
+
 if __name__ == "__main__":
     answer = "Кошелек"
     question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
