@@ -20,6 +20,7 @@ class State(Enum):
 
 def NextRound(id, letter):
     answer, word = SQL_Core.GetAnswerAndWord(id)
+    word = str(word)
     if answer != -1 and word != -1:
         answer = str(answer).upper()
         letter = str(letter)
@@ -34,21 +35,23 @@ def NextRound(id, letter):
     #         elif (len(letter) > 1 and letter != STOPGAMEWORD):
     #             print("Вы ввели больше одного символа!")
 
-        if letter in answer:
+        if letter in word and len(letter) == 1:
+            print("Буква уже открыта!")
+        elif letter in answer and len(letter) == 1:
             print("Есть такая буква!")
             word = list(word)
             all_ind = [m.start() for m in re.finditer(letter, answer)]
+            print(word)
             for ind in all_ind:
                 print(ind)
                 word[ind] = letter
-                word = "".join(word)
-                if word == answer:
-                    print("Победитель!")
-        elif letter in word:
-            print("Буква уже открыта!")
+            word = "".join(word)
+        elif letter == answer:
+            print("Открыть все слово сразу! Победитель!")
+        elif word == answer:
+            print("Победитель!")
         else:
             print("Нет такой буквы!")
-            current_state = State.NextStep
 
     #         else:
     #             if letter != STOPGAMEWORD:

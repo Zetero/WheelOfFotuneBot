@@ -77,13 +77,14 @@ def Msg_Handler(message):
     clientId = message.chat.id
     if len(message.text) == 4:
         SQL_Core.NewGame(clientId, message.text)
-    elif (len(message.text) == 1) and SQL_Core.GetState(clientId) == -3:
+    elif SQL_Core.GetState(clientId) != -3:
         if SQL_Core.GetState(clientId) == 0:
             Interface_Core.NextRound(clientId, message.text)
         elif SQL_Core.GetState(clientId) == 1:
             bot.send_message(chat_id = clientId, text = "Сейчас ход противника, олень!", parse_mode = "Markdown")
-    else:
-        bot.send_message(chat_id = clientId, text = "Напишите /help для дополнительной информации о функционале бота.", parse_mode = "Markdown")
+        ## Переделать мб?
+        else:
+            bot.send_message(chat_id = clientId, text = "Напишите /help для дополнительной информации о функционале бота.", parse_mode = "Markdown")
 
 def SendQuestion(id1, id2, first_player):
     question = SQL_Core.GetQuestion(id1)

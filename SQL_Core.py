@@ -158,58 +158,48 @@ def NewGame(id, token):
     conn.isolation_level = None
     cur = conn.cursor()
     id = str(id)
-    res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
     if res[0] == 1:
-        res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
-        ## DEL THIS ##
-        player_1_id = res[0]
-        player_2_id = id
-        print(player_1_id)
-
-        if str(player_2_id) != str(player_1_id):
-            res = cur.execute(f"""
-                SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
-            """)
-            ## DEL THIS ##
-            first_player = 0
-            if res.fetchone()[0] == 1:
-                first_player = r.randint(0,1)
-
-                new_res = cur.execute(f"""
-                UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
+        res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
+        ### ЕСЛИ ИГРА УЖЕ ИДЕТ И ТЫ ПЕРЕСОЗДАЕШЬ ТО ТЕБЕ ПОРАЖЕНИЕ ВРАГУ ПОБЕДА
+        if res[0] == 1:
+            res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
+            player_1_id = res[0]
+            player_2_id = id
+            if str(player_2_id) != str(player_1_id):
+                res = cur.execute(f"""
+                    SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
                 """)
-                ## DEL THIS ##
-
-                new_res = cur.execute(f"""
-                UPDATE users SET session = '{token}' WHERE id = '{id}'
-                """)
-                ## DEL THIS ##
-
-                if first_player == 0:
+                first_player = 0
+                if res.fetchone()[0] == 1:
+                    first_player = r.randint(0,1)
                     new_res = cur.execute(f"""
-                    UPDATE users SET state = 0 WHERE id = '{player_1_id}'
+                    UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
                     """)
-                    ## DEL THIS ##
-
                     new_res = cur.execute(f"""
-                    UPDATE users SET state = 1 WHERE id = '{player_2_id}'
+                    UPDATE users SET session = '{token}' WHERE id = '{id}'
                     """)
-                    ## DEL THIS ##
-                else:
-                    new_res = cur.execute(f"""
-                    UPDATE users SET state = 0 WHERE id = '{player_2_id}'
-                    """)
-                    ## DEL THIS ##
-
-                    new_res = cur.execute(f"""
-                    UPDATE users SET state = 1 WHERE id = '{player_1_id}'
-                    """)
-                    ## DEL THIS ##
-                Telegramm_Core.SendQuestion(player_1_id, player_2_id, first_player)
+                    if first_player == 0:
+                        new_res = cur.execute(f"""
+                        UPDATE users SET state = 0 WHERE id = '{player_1_id}'
+                        """)
+                        new_res = cur.execute(f"""
+                        UPDATE users SET state = 1 WHERE id = '{player_2_id}'
+                        """)
+                    else:
+                        new_res = cur.execute(f"""
+                        UPDATE users SET state = 0 WHERE id = '{player_2_id}'
+                        """)
+                        new_res = cur.execute(f"""
+                        UPDATE users SET state = 1 WHERE id = '{player_1_id}'
+                        """)
+                    Telegramm_Core.SendQuestion(player_1_id, player_2_id, first_player)
+            else:
+                Telegramm_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
         else:
-            Telegramm_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
+            Telegramm_Core.SendMessage(id, "Такой сессии не существует..")
     else:
-        Telegramm_Core.SendMessage(id, "Такой сессии не существует..")
+        Telegramm_Core.SendMessage(id, "Создайте пользователя с помощью команды /start")
 
 def Surrender(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
