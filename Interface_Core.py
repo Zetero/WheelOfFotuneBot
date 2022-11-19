@@ -18,9 +18,6 @@ class State(Enum):
     NextStep = 1
     Winner = 2
 
-# STATE долдно быть NEW LETTER
-
-
 def NextRound(id, letter):
     answer, word = SQL_Core.GetAnswerAndWord(id)
     if answer != -1 and word != -1:
