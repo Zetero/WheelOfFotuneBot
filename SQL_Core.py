@@ -74,7 +74,7 @@ def AddNewSession(id):
         # 1 - сделанный мной индекс
         res = cur.execute(f"SELECT answer FROM questions WHERE id = '1'").fetchone()
         answer_2 = res[0]
-        current_word = len(answer) * "□"
+        current_word = "К" + "□□□□□□"#str(len(answer)-1 * "□")
         print(current_word)  
 
         cur.execute(f"""
@@ -122,6 +122,37 @@ def GetQuestion(id):
         else:
             return "Чтобы получить вопрос - сначала начните игру!"
 
+def GetAnswerAndWord(id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    id = str(id)
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
+    if res[0] == 1:
+        id = cur.execute(f"SELECT session FROM users WHERE id = '{id}'").fetchone()
+        res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{id[0]}')").fetchone()
+        if res[0] == 1:
+            res = cur.execute(f"SELECT answer_id, current_word FROM sessions WHERE id = '{id[0]}'").fetchone()
+            answer = res[0]
+            current_word = res[1]
+            answer = cur.execute(f"SELECT answer FROM questions WHERE id = '{answer}'").fetchone()
+            print("hh")
+            return (answer[0], current_word)
+        else:
+            return -1, -1
+    else:
+        return -1, -1
+
+def GetState(id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    id = str(id)
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
+    if res[0] == 1:
+        res = cur.execute(f"SELECT state FROM users WHERE id = '{id}'").fetchone()
+        return res[0]
+
 def NewGame(id, token):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
@@ -140,7 +171,7 @@ def NewGame(id, token):
                 SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
             """)
             ## DEL THIS ##
-
+            first_player = 0
             if res.fetchone()[0] == 1:
                 first_player = r.randint(0,1)
 
@@ -174,6 +205,7 @@ def NewGame(id, token):
                     UPDATE users SET state = 1 WHERE id = '{player_1_id}'
                     """)
                     ## DEL THIS ##
+                Telegramm_Core.SendQuestion(player_1_id, player_2_id, first_player)
         else:
             Telegramm_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
     else:
