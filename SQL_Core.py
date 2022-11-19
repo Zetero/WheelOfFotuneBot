@@ -8,20 +8,31 @@ import random as r
 answer = "Кошелек"
 text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
 
+class DatabaseQueryHandler():
+    def __init__(self):
+        # вот здесь инициируем нужные переменные
+        pass
+
+class SQL_DB(DatabaseQueryHandler):
+
+    def CreateDBs(self, id):
+        # вот здесь реализуем созданием базы данных SQL с нужными таблицами и колонками
+        pass
+
+#Вот так будет проходить запрос?
+DB = SQL_DB()
+DB.CreateDBs()
+
+
+
+
+
+
 def AddUserToDB(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
-    id = str(id)
-    res = cur.execute(f"""
-        SELECT EXISTS(SELECT * FROM users WHERE id = {id})
-    """)
-    if res.fetchone()[0] == 0:
-        cur.execute(f"""
-        INSERT INTO users VALUES
-        ({id},0,0,-3,-1)
-        """)
-        ## DEL THIS ##
+    user_exists = ExistsInDB("users", id)
+    if user_exists == 0:
+        # CREATE NEW USERS WITHOUT WINS, LOSE, ID SESSION, CURRENT_MOVE
+        InsertInTable("users", f"{id}, 0, 0 , -3, -1")
 
 def InfoAboutUser(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
@@ -63,13 +74,13 @@ def AddNewSession(id):
     """)
     ## DEL THIS ##
     if res.fetchone()[0] == 1:
-        new_token = False
+        is_uniq_token = False
         token = ''
-        while new_token == False:
+        while is_uniq_token == False:
             token = GenerateToken()
             new_res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
             if new_res[0] == 0:
-                new_token = True
+                is_uniq_token = True
 
         # 1 - сделанный мной индекс
         res = cur.execute(f"SELECT answer FROM questions WHERE id = '1'").fetchone()
@@ -304,6 +315,23 @@ def GenerateToken():
     for i in range(4):
         token += chr(r.randint(97,122))
     return token
+
+# Check if object exists in DB
+def ExistsInDB(name_table, id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM {name_table} WHERE id = {id})").fetchone()
+    is_exists = res[0]
+    return is_exists
+
+def InsertInTable(table, values):
+    table = str(table)
+    values = str(values)
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    cur.execute(f"INSERT INTO {table} VALUES ({values})")
 
 if __name__ == "__main__":
     RecreateDBs()

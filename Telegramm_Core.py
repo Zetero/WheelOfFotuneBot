@@ -31,18 +31,18 @@ def SendInfo(message):
     """, parse_mode = "Markdown")
 
 @bot.message_handler(commands = ["surrender"])
-def SendInfo(message):
+def Surrender(message):
     clientId = message.chat.id
     SQL_Core.Surrender(clientId)
 
 @bot.message_handler(commands = ["ng"])
-def SendInfo(message):
+def StartNewGame(message):
     clientId = message.chat.id
     token = SQL_Core.AddNewSession(clientId)
     bot.send_message(chat_id = clientId, text = "Ваш токен: "+ token, parse_mode = "Markdown")
 
 @bot.message_handler(commands = ["q"])
-def SendInfo(message):
+def SendQuestionText(message):
     clientId = message.chat.id
     SendQuestion(clientId, None)
 
