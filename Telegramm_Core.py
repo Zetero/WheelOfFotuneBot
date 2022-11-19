@@ -6,42 +6,50 @@ import re
 import Interface_Core
 
 DATABASE_RECREATE_COMMAND = "12345"
-FULL_INFO_COMMAND = "54321"
+FULL_INFO_COMMAND = "full_info"
+INFO_COMMAND = "info"
+CREATE_USER_COMMAND = "create_user"
+HELP_COMMAND = "help"
+SEND_QUESTION_COMMAND = "q"
+NEW_GAME_COMMAND = "ng"
+SURRENDER_COMMAND = "surrender"
 
 bot = telebot.TeleBot(token = "5402715304:AAGqXbYSTkiC6GCvD7OCUJP57dbW_-jK704")
 
-@bot.message_handler(commands = ["start"])
+@bot.message_handler(commands = [CREATE_USER_COMMAND, "start"])
 def CreateUserTable(message):
     clientId = message.chat.id
-    SQL_Core.AddUserToDB(clientId)
-    bot.send_message(chat_id = clientId, text= "ЗАТЫЧКА", parse_mode = "Markdown")
+    if SQL_Core.AddUserToDB(clientId):
+        bot.send_message(chat_id = clientId, text= "Пользователь создан!", parse_mode = "Markdown")
+    else:
+        bot.send_message(chat_id = clientId, text= "Пользователь уже существует!", parse_mode = "Markdown")
 
-@bot.message_handler(commands = ["recreate"])
-def ReCreateUserTable(message):
-    clientId = message.chat.id
-    SQL_Core.AddUserToDB(clientId)
-    bot.send_message(chat_id = clientId, text= "ЗАТЫЧКА!", parse_mode = "Markdown")
-
-@bot.message_handler(commands = ["info"])
+@bot.message_handler(commands = [INFO_COMMAND])
 def SendInfo(message):
     clientId = message.chat.id
     countwin, countlose = SQL_Core.InfoAboutUser(clientId)
-    bot.send_message(chat_id = clientId, text = f"""
-    😎  Количество ваших побед: {countwin}\n😔  Количество ваших поражений: {countlose}
-    """, parse_mode = "Markdown")
+    if countlose != None:
+        bot.send_message(chat_id = clientId, text = f"""
+        😎  Количество ваших побед: {countwin}\n😔  Количество ваших поражений: {countlose}
+        """, parse_mode = "Markdown")
+    else:
+        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
 
-@bot.message_handler(commands = ["surrender"])
+@bot.message_handler(commands = [SURRENDER_COMMAND])
 def Surrender(message):
     clientId = message.chat.id
     SQL_Core.Surrender(clientId)
 
-@bot.message_handler(commands = ["ng"])
+@bot.message_handler(commands = [NEW_GAME_COMMAND])
 def StartNewGame(message):
     clientId = message.chat.id
     token = SQL_Core.AddNewSession(clientId)
-    bot.send_message(chat_id = clientId, text = "Ваш токен: "+ token, parse_mode = "Markdown")
+    if token != None:
+        bot.send_message(chat_id = clientId, text = "Ваш токен сессии: "+ token, parse_mode = "Markdown")
+    else:
+        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
 
-@bot.message_handler(commands = ["q"])
+@bot.message_handler(commands = [SEND_QUESTION_COMMAND])
 def SendQuestionText(message):
     clientId = message.chat.id
     SendQuestion(clientId, None)
@@ -63,14 +71,18 @@ def SendFullInfo(message):
         state = 'NextStep'
     elif all_info[3] == 2:
         state = 'Winner'
-    bot.send_message(chat_id = clientId, text = f"Info:\nID: {str(all_info[0])}\nCount Win: {str(all_info[1])}\n\
+
+    if all_info != None:
+        bot.send_message(chat_id = clientId, text = f"Info:\nID: {str(all_info[0])}\nCount Win: {str(all_info[1])}\n\
 Count Lose: {str(all_info[2])}\nState: {str(state)}\nSession: {str(all_info[4])}\n", parse_mode = "Markdown")
+    else:
+        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
 
 @bot.message_handler(commands = [DATABASE_RECREATE_COMMAND])
 def ClearDBs(message):
     clientId = message.chat.id
     SQL_Core.RecreateDBs()
-    bot.send_message(chat_id = clientId, text = "DATABASE RECREATED. CREATE NEW USER (/start)", parse_mode = "Markdown")
+    bot.send_message(chat_id = clientId, text = f"DATABASE RECREATED. CREATE NEW USER (/{CREATE_USER_COMMAND})", parse_mode = "Markdown")
 
 @bot.message_handler()
 def Msg_Handler(message):
@@ -84,7 +96,7 @@ def Msg_Handler(message):
             bot.send_message(chat_id = clientId, text = "Сейчас ход противника, олень!", parse_mode = "Markdown")
         ## Переделать мб?
         else:
-            bot.send_message(chat_id = clientId, text = "Напишите /help для дополнительной информации о функционале бота.", parse_mode = "Markdown")
+            bot.send_message(chat_id = clientId, text = f"Напишите /{HELP_COMMAND} для дополнительной информации о функционале бота.", parse_mode = "Markdown")
 
 def SendQuestion(id1, id2, first_player):
     question = SQL_Core.GetQuestion(id1)
@@ -92,6 +104,9 @@ def SendQuestion(id1, id2, first_player):
         bot.send_message(chat_id = id1, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
     if id2 != None:
         bot.send_message(chat_id = id2, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
+    if question == None:
+        bot.send_message(chat_id = id2, text = f"Чтобы получить вопрос - сначала начните игру.", parse_mode = "Markdown")
+    
     if first_player == 0:
         bot.send_message(chat_id = id1, text = f"Ваш ход:\nВведите букву:", parse_mode = "Markdown")
         bot.send_message(chat_id = id2, text = f"Сейчас идёт ход противника:", parse_mode = "Markdown")

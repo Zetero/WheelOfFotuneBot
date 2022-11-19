@@ -3,13 +3,6 @@ from enum import Enum
 import re
 import SQL_Core
 
-STOPGAMEWORD = "GG"
-
-answer = "Кошелек"
-question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
-word = ""
-
-
 class State(Enum):
     EmptySession = -3
     Loser = -2
@@ -26,15 +19,6 @@ def NextRound(id, letter):
         letter = str(letter)
         letter = letter.upper()
 
-    #         elif (bool (re.search("[a-zA-Z]", letter)) == True) and (len(letter) == 1):
-    #             print("Ну да, ну да.. Я же не сказал кириллицу, верно? Ну вот теперь говорю. ТОЛЬКО КИРИЛЛИЦА!")
-    #         elif (bool (re.search("[0-9]", letter)) == True) and (len(letter) == 1):
-    #             print("Цифры? Серьёзно?")
-    #         elif (bool (re.search("[а-яА-Я]", letter)) == False) and (len(letter) == 1):
-    #             print("Написано же \"БУКВЫ\"")
-    #         elif (len(letter) > 1 and letter != STOPGAMEWORD):
-    #             print("Вы ввели больше одного символа!")
-
         if letter in word and len(letter) == 1:
             print("Буква уже открыта!")
         elif letter in answer and len(letter) == 1:
@@ -48,10 +32,22 @@ def NextRound(id, letter):
             word = "".join(word)
         elif letter == answer:
             print("Открыть все слово сразу! Победитель!")
-        elif word == answer:
-            print("Победитель!")
         else:
             print("Нет такой буквы!")
+
+        if word == answer:
+            print("Победитель!")
+
+        
+    #         elif (bool (re.search("[a-zA-Z]", letter)) == True) and (len(letter) == 1):
+    #             print("Ну да, ну да.. Я же не сказал кириллицу, верно? Ну вот теперь говорю. ТОЛЬКО КИРИЛЛИЦА!")
+    #         elif (bool (re.search("[0-9]", letter)) == True) and (len(letter) == 1):
+    #             print("Цифры? Серьёзно?")
+    #         elif (bool (re.search("[а-яА-Я]", letter)) == False) and (len(letter) == 1):
+    #             print("Написано же \"БУКВЫ\"")
+    #         elif (len(letter) > 1 and letter != STOPGAMEWORD):
+    #             print("Вы ввели больше одного символа!")
+
 
     #         else:
     #             if letter != STOPGAMEWORD:
@@ -69,13 +65,3 @@ def NextRound(id, letter):
     #                 else:
     #                     print("Нет такой буквы!")
     #                     current_state = State.NextStep
-
-    #         if letter == STOPGAMEWORD:
-    #             current_state = State.Surrender
-
-
-if __name__ == "__main__":
-    answer = "Кошелек"
-    question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
-    word = ""
-    # NextRound()

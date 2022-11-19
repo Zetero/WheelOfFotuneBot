@@ -8,130 +8,148 @@ import random as r
 answer = "Кошелек"
 text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
 
+# Создаем хендлер
 class DatabaseQueryHandler():
-    def __init__(self):
-        # вот здесь инициируем нужные переменные
-        pass
+    # иницируем те переменные которые нужны всем наследникам (например путь размещения базы)
+    def __init__(self, DB_path):
+        self.DB_path = DB_path
+    
+    # интерфейс (для чего?)
+    def CreateDBs(self):
+        path = self.DB_path()
 
+# Подкласс
 class SQL_DB(DatabaseQueryHandler):
 
-    def CreateDBs(self, id):
-        # вот здесь реализуем созданием базы данных SQL с нужными таблицами и колонками
-        pass
+    #Переопределение функции
+    def CreateDBs(self):
+        dirname = self.DB_path()
+
+
+        # Реализация создания базы в SQL
+        dirname = os.path.dirname(__file__)
+        if (os.path.exists(dirname + "\\DATABASEs")) == False:
+            os.mkdir(dirname + "\\DATABASEs")
+            conn = sqlite3.connect(dirname + "\\DATABASEs\\" + "Users-Sessions-Questions-Tables.db")
+            cur = conn.cursor()
+            cur.executescript("""
+            CREATE TABLE IF NOT EXISTS users(
+                id TEXT,
+                countwin TEXT,
+                countlose TEXT,
+                state INT,
+                session TEXT);
+            """)
+            print("USERS DATABASE CREATE")
+            ## DEL THIS ##
+
+            cur.executescript("""
+            CREATE TABLE IF NOT EXISTS sessions(
+                id TEXT,
+                current_word TEXT,
+                answer_id TEXT,
+                player_1_id TEXT,
+                player_2_id TEXT);
+            """)
+            print("USERS SESSIONS CREATE")
+            ## DEL THIS ##
+
+            cur.executescript("""
+            CREATE TABLE IF NOT EXISTS questions(
+                id TEXT,
+                answer TEXT,
+                text_question TEXT);
+            """)
+            print("USERS QUESTIONS CREATE")
+            ## DEL THIS ##
+
+            cur.executescript(f"""
+            INSERT INTO questions VALUES
+            ('1','{answer}', '{text_question}');
+            """)
+            ## DEL THIS ##
+            print("QUESTION 1 READY")
 
 #Вот так будет проходить запрос?
-DB = SQL_DB()
-DB.CreateDBs()
+#DB = SQL_DB()
+#DB.CreateDBs()
 
-
-
-
-
-
+# WORK
 def AddUserToDB(id):
     user_exists = ExistsInDB("users", id)
-    if user_exists == 0:
-        # CREATE NEW USERS WITHOUT WINS, LOSE, ID SESSION, CURRENT_MOVE
-        InsertInTable("users", f"{id}, 0, 0 , -3, -1")
+    if user_exists == False:
+        id = str(id)
+        count_win = '0'
+        count_lose = '0'
+        current_step = '-3'
+        current_session = '-1'
+        InsertInTable("users", id, count_win, count_lose, current_step, current_session)
+        return True
+    else:
+        return False
 
+# WORK
 def InfoAboutUser(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
-    id = str(id)
-    res = cur.execute(f"""
-        SELECT EXISTS(SELECT * FROM users WHERE id = {id})
-    """)
-    if res.fetchone()[0] == 1:
-        new_res = cur.execute(f"SELECT countwin, countlose FROM users WHERE id = '{id}'")
-        countwin, countlose = new_res.fetchone()
-        return countwin, countlose
+    user_exists = ExistsInDB("users", id)
+    if user_exists == True:
+        return list(SelectFromTable("users", id, "countwin, countlose"))
     else:
-        return list(['USER_NOT_FOUND', 'USER_NOT_FOUND'])
+        return None, None
 
+# WORK
 def AllInfoAboutUser(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
-    id = str(id)
-    res = cur.execute(f"""
-        SELECT EXISTS(SELECT * FROM users WHERE id = {id})
-    """)
-    if res.fetchone()[0] == 1:
-        new_res = cur.execute(f"SELECT id, countwin, countlose, state, session FROM users WHERE id = '{id}'")
-        all_info = list(new_res.fetchone())
-        return all_info
+    user_exists = ExistsInDB("users", id)
+    if user_exists == True:
+        return list(SelectFromTable("users", id, "id, countwin, countlose, state, session"))
     else:
-        return list(['USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND', 'USER_NOT_FOUND'])
+        return None
 
+# WORK
 def AddNewSession(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
-    id = str(id)
-    res = cur.execute(f"""
-        SELECT EXISTS(SELECT * FROM users WHERE id = {id});
-    """)
-    ## DEL THIS ##
-    if res.fetchone()[0] == 1:
+    user_exists = ExistsInDB("users", id)
+    if user_exists == True:
         is_uniq_token = False
-        token = ''
+        session_id = ''
         while is_uniq_token == False:
-            token = GenerateToken()
-            new_res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
-            if new_res[0] == 0:
+            session_id = GenerateToken()
+            session_id_exists = ExistsInDB("sessions", session_id)
+            if session_id_exists == False:
                 is_uniq_token = True
 
         # 1 - сделанный мной индекс
-        res = cur.execute(f"SELECT answer FROM questions WHERE id = '1'").fetchone()
-        answer_2 = res[0]
-        current_word = "К" + "□□□□□□"#str(len(answer)-1 * "□")
-        print(current_word)  
-
-        cur.execute(f"""
-        INSERT INTO sessions VALUES
-        ('{token}', '{current_word}', '1', {id}, -1);
-        """)
-        print("SESSION GOOD")
-        ## DEL THIS ##
-
-        cur.execute(f"""
-        UPDATE users SET session = '{token}' WHERE id = {id}
-        """)
-        ## DEL THIS ##
-        return token
+        answer = SelectFromTable("questions", '1', "answer")[0]
+        encrypted_word = len(answer) * "□"
+        question_id = '1'
+        player_1_id = str(id)
+        player_2_id = '-1'
+        InsertInTable("sessions", session_id, encrypted_word, question_id, player_1_id, player_2_id)
+        UpdateTable("users", "session", session_id, player_1_id)
+        return session_id
     else:
-        return 'USER_NOT_FOUND'
+        return None
 
+# WORK
 def DeleteSession(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
     id = str(id)
-    res = cur.execute(f"""
+    cur.execute(f"""
         DELETE FROM sessions WHERE player_1_id = '{id}';
     """)
-    print("DELETED")
-    ## DEL THIS ##
+    conn.close()
 
+# NEED TO CHECK
 def GetQuestion(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
-    id = str(id)
-    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
-    if res[0] == 1:
-        res = cur.execute(f"SELECT session, state FROM users WHERE id = '{id}'").fetchone()
-        print(res[0])
-        print(res[1])
-        if str(res[0]) != '-1' and str(res[1]) != '-3':
-            res = cur.execute(f"SELECT answer_id FROM sessions WHERE id = '{res[0]}'").fetchone()
-            print(res[0])
-            res = cur.execute(f"SELECT text_question FROM questions WHERE id = '{res[0]}'").fetchone()
-            print(res[0])
-            return str(res[0])
+    user_exists = ExistsInDB("users", id)
+    if user_exists == True:
+        session_id, state = SelectFromTable("users", id, "session, state")
+        if session_id != '-1' and str(state) != '-3':
+            answer_id = SelectFromTable("sessions", session_id, "answer_id")
+            text_question = SelectFromTable("questions", answer_id, "text_question")
+            return text_question
         else:
-            return "Чтобы получить вопрос - сначала начните игру!"
+            return None
 
 def GetAnswerAndWord(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
@@ -317,21 +335,36 @@ def GenerateToken():
     return token
 
 # Check if object exists in DB
-def ExistsInDB(name_table, id):
+def ExistsInDB(table, id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
-    res = cur.execute(f"SELECT EXISTS(SELECT * FROM {name_table} WHERE id = {id})").fetchone()
+    res = cur.execute(f"SELECT EXISTS(SELECT * FROM '{table}' WHERE id = '{id}')").fetchone()
     is_exists = res[0]
-    return is_exists
+    conn.close()
+    return bool(is_exists)
 
-def InsertInTable(table, values):
+def InsertInTable(table, *args):
     table = str(table)
-    values = str(values)
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
-    cur.execute(f"INSERT INTO {table} VALUES ({values})")
+    print(args)
+    count_args = str(len(args) * "?,")[:-1]
+    cur.execute(f"INSERT INTO '{table}' VALUES ({count_args})", args)
+    conn.close()
 
-if __name__ == "__main__":
-    RecreateDBs()
+def SelectFromTable(table, id, values):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    res = cur.execute(f"SELECT {values} FROM {table} WHERE id = '{id}'").fetchone()
+    conn.close()
+    return list(res)
+
+def UpdateTable(table, changeable_field, value, id):
+    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+    conn.isolation_level = None
+    cur = conn.cursor()
+    cur.execute(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
+    conn.close()
