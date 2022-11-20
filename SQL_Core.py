@@ -5,8 +5,9 @@ import shutil
 import Telegramm_Core
 import random as r
 
-answer = "Кошелек"
+answer = "Кошелёк"
 text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
+conn = '' # подключаю залупу
 
 # Создаем хендлер
 class DatabaseQueryHandler():
@@ -131,12 +132,11 @@ def AddNewSession(id):
         return None
 
 # WORK
-def DeleteSession(id):
-    id_session = SelectFromTable("users", id, "session")[0]
+def DeleteSession(id_session):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
-    id = str(id)
+    id = str(id_session)
     cur.execute(f"""
         DELETE FROM sessions WHERE id = '{id_session}';
     """)
@@ -156,25 +156,21 @@ def GetQuestion(id):
 
 # WORK
 def GetAnswerAndWord(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
     id = str(id)
-    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
-    if res[0] == 1:
-        id = cur.execute(f"SELECT session FROM users WHERE id = '{id}'").fetchone()
-        res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{id[0]}')").fetchone()
-        if res[0] == 1:
-            res = cur.execute(f"SELECT answer_id, current_word FROM sessions WHERE id = '{id[0]}'").fetchone()
-            answer = res[0]
-            current_word = res[1]
-            answer = cur.execute(f"SELECT answer FROM questions WHERE id = '{answer}'").fetchone()
-            return (answer[0], current_word)
+    user_exists = ExistsInDB("users", id)
+    if user_exists == True:
+        id_session = SelectFromTable("users", id, "session")[0]
+        session_exists = ExistsInDB("sessions", id_session)
+        if session_exists == True:
+            id_answer, current_word = SelectFromTable("sessions", "'" + id_session + "'", "answer_id, current_word")
+            answer = SelectFromTable("questions", id_answer, "answer")[0]
+            return (answer, current_word)
         else:
-            return -1, -1
+            return None, None
     else:
-        return -1, -1
+        return None, None
 
+# WORK
 def WinGame(winner, loser, id_session):
     countwin = int(SelectFromTable("users", winner, "countwin")[0])
     countlose = int(SelectFromTable("users", loser, "countwin")[0])
@@ -186,6 +182,7 @@ def WinGame(winner, loser, id_session):
     UpdateTable("users", "session", "-1", loser)
     DeleteSession(id_session)
 
+# WORK
 def NextPlayerMove(id):
     id_session = SelectFromTable("users", id, "session")[0]
     player_1_id, player_2_id = SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id") 
@@ -205,10 +202,10 @@ def GetState(id):
     conn.isolation_level = None
     cur = conn.cursor()
     id = str(id)
-    res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
-    if res[0] == 1:
-        res = cur.execute(f"SELECT state FROM users WHERE id = '{id}'").fetchone()
-        return res[0]
+    user_exists = ExistsInDB("users", id) 
+    if user_exists == True:
+        player_state = SelectFromTable("users", id, "state")[0]
+        return player_state
 
 def NewGame(id, token):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
@@ -280,50 +277,35 @@ def NewGame(id, token):
         Telegramm_Core.SendMessage(id, "Создайте пользователя с помощью команды /start")
 
 def Surrender(id):
-    conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-    conn.isolation_level = None
-    cur = conn.cursor()
     id = str(id)
-    res = cur.execute(f"""
-        SELECT session FROM users WHERE id = '{id}'
-    """).fetchone()
-    ## DEL THIS ##
-    id_session = res[0]
+    # Проверку на существование пользователя / игры
+    id_session = SelectFromTable("users", id, "session")[0]
     if(str(id_session) != '-1'):
-        res = cur.execute(f"""
-            SELECT player_1_id, player_2_id FROM sessions WHERE id = '{id_session}'
-        """).fetchone()
-        player_1_id, player_2_id = res
-        print(player_1_id)
-        print(player_2_id)
-        if ((id_session != '-1') and (player_2_id != '-1')):
+        player_1_id, player_2_id = SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id")
+        if (player_2_id != '-1'):
             if str(id) == str(player_1_id):
-                print("SURRENDER 1")
-                countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_1_id}'").fetchone()
-                countlose = str(int(countlose[0]) + 1)
-                res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_1_id}'")
-                countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_2_id}'").fetchone()
-                countwin = str(int(countwin[0]) + 1)
-                res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_2_id}'")
-                ## DEL THIS ##
+                countlose = int(SelectFromTable("users", player_1_id, "countlose")[0]) + 1
+                UpdateTable("users", "countlose", str(countlose), player_1_id)
+                countwin = int(SelectFromTable("users", player_2_id, "countwin")[0]) + 1
+                UpdateTable("users", "countwin", str(countwin), player_2_id)
+                Telegramm_Core.SendMessage(player_1_id, "Вам засчитано поражение.")
+                Telegramm_Core.SendMessage(player_2_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
             elif str(id) == str(player_2_id):
-                print("SURRENDER 2")
-                countlose = cur.execute(f"SELECT countlose FROM users WHERE id = '{player_2_id}'").fetchone()
-                countlose = str(int(countlose[0]) + 1)
-                res = cur.execute(f"UPDATE users SET countlose = '{countlose}' WHERE id = '{player_2_id}'")
-                ## DEL THIS ##
-                countwin = cur.execute(f"SELECT countwin FROM users WHERE id = '{player_1_id}'").fetchone()
-                countwin = str(int(countwin[0]) + 1)
-                res = cur.execute(f"UPDATE users SET countwin = '{countwin}' WHERE id = '{player_1_id}'")
-                ## DEL THIS ##
+                countlose = int(SelectFromTable("users", player_2_id, "countlose")[0]) + 1
+                UpdateTable("users", "countlose", str(countlose), player_2_id)
+                countwin = int(SelectFromTable("users", player_1_id, "countwin")[0]) + 1
+                UpdateTable("users", "countwin", str(countwin), player_1_id)
+                Telegramm_Core.SendMessage(player_2_id, "Вам засчитано поражение.")
+                Telegramm_Core.SendMessage(player_1_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
 
-            res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_1_id}'")
-            ## DEL THIS ##
-            res = cur.execute(f"UPDATE users SET session = '-1', state = -3 WHERE id = '{player_2_id}'")
-            ## DEL THIS ##
-            DeleteSession(player_1_id)
+            UpdateTable("users", "session", "-1", player_1_id)
+            UpdateTable("users", "session", "-1", player_2_id)
+            UpdateTable("users", "state", "-3", player_1_id)
+            UpdateTable("users", "state", "-3", player_2_id)
+            DeleteSession(id_session)
         elif (id_session != '-1'):
-            DeleteSession(player_1_id)
+            DeleteSession(id_session)
+        # ВЫ СДАЛИСЬ НАПИСАТЬ
             
 def CreateDBs():
     dirname = os.path.dirname(__file__)
@@ -402,7 +384,7 @@ def SelectFromTable(table, id, values):
     conn.isolation_level = None
     cur = conn.cursor()
     print(f"SELECT {values} FROM {table} WHERE id = {id}")
-    res = cur.execute(f"SELECT {values} FROM {table} WHERE id = {id}").fetchone()
+    res = cur.execute(f"SELECT {values} FROM {table} WHERE id = {id}").fetchone() 
     conn.close()
     return list(res)
 
