@@ -2,10 +2,9 @@
 import telebot
 from telebot import types
 import SQL_Core
-import re
 import Interface_Core
+import argparse
 
-DATABASE_RECREATE_COMMAND = "12345"
 FULL_INFO_COMMAND = "full_info"
 INFO_COMMAND = "info"
 CREATE_USER_COMMAND = "create_user"
@@ -13,6 +12,38 @@ HELP_COMMAND = "help"
 SEND_QUESTION_COMMAND = "q"
 NEW_GAME_COMMAND = "ng"
 SURRENDER_COMMAND = "surrender"
+
+parser = argparse.ArgumentParser(description = "Parse args")
+parser.add_argument('--bot_token', help = "Enter token a telegramm bot", type = str)
+parser.add_argument('--database_engine', help = """
+Select the database you want to use in the project. (Available databases: \"SQLLITE\")
+""", type = str)
+parser.add_argument('--first_lauch', help = """
+Enter \"Y\" if you are launching the bot for the first time or want to recreate the database. 
+This action is required to create tables in the database""", type = str)
+args = parser.parse_args()
+
+if args.token_path:
+    with open(args.token_path, 'r') as f:
+        token =  f.readlines()
+        token = token[1].strip('\n')
+        bot = telebot.TeleBot(token = token)
+else:
+    with open('tokens.txt', 'r') as f:
+        token =  f.readlines()
+        token = token[1].strip('\n')
+        bot = telebot.TeleBot(token = token) 
+
+if args.token_path:
+    with open(args.token_path, 'r') as f:
+        token =  f.readlines()
+        token = token[1].strip('\n')
+        bot = telebot.TeleBot(token = token)
+else:
+    with open('tokens.txt', 'r') as f:
+        token =  f.readlines()
+        token = token[1].strip('\n')
+        bot = telebot.TeleBot(token = token) 
 
 bot = telebot.TeleBot(token = "5402715304:AAGqXbYSTkiC6GCvD7OCUJP57dbW_-jK704")
 
@@ -82,11 +113,11 @@ Count Lose: {str(all_info[2])}\nState: {str(state)}\nSession: {str(all_info[4])}
     else:
         bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
 
-@bot.message_handler(commands = [DATABASE_RECREATE_COMMAND])
-def ClearDBs(message):
-    clientId = message.chat.id
-    SQL_Core.RecreateDBs()
-    bot.send_message(chat_id = clientId, text = f"DATABASE RECREATED. CREATE NEW USER (/{CREATE_USER_COMMAND})", parse_mode = "Markdown")
+# @bot.message_handler(commands = [DATABASE_RECREATE_COMMAND])
+# def ClearDBs(message):
+#     clientId = message.chat.id
+#     SQL_Core.RecreateDBs()
+#     bot.send_message(chat_id = clientId, text = f"DATABASE RECREATED. CREATE NEW USER (/{CREATE_USER_COMMAND})", parse_mode = "Markdown")
 
 @bot.message_handler()
 def Msg_Handler(message):
@@ -105,6 +136,7 @@ def SendMessage(id, text):
     bot.send_message(chat_id = id, text = f"{text}", parse_mode = "Markdown")
 
 if __name__ == "__main__":
+
     SQL_Core.RecreateDBs()
     print("START TELEGRAMM BOT")
     bot.polling(none_stop = True)

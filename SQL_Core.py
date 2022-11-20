@@ -71,11 +71,6 @@ class SQL_DB(DatabaseQueryHandler):
             ## DEL THIS ##
             print("QUESTION 1 READY")
 
-#Вот так будет проходить запрос?
-#DB = SQL_DB()
-#DB.CreateDBs()
-
-### При создании новой сессии удалять старую если она есть
 
 # WORK
 def AddUserToDB(id):
