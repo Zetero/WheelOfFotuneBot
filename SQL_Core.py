@@ -74,6 +74,8 @@ class SQL_DB(DatabaseQueryHandler):
 #DB = SQL_DB()
 #DB.CreateDBs()
 
+### При создании новой сессии удалять старую если она есть
+
 # WORK
 def AddUserToDB(id):
     user_exists = ExistsInDB("users", id)
@@ -117,8 +119,8 @@ def AddNewSession(id):
                 is_uniq_token = True
 
         # 1 - сделанный мной индекс
-        answer = SelectFromTable("questions", '1', "answer")[0]
-        encrypted_word = len(answer) * "□"
+        answer = SelectFromTable("questions", "1", "answer")
+        encrypted_word = len(answer[0]) * '🟦'
         question_id = '1'
         player_1_id = str(id)
         player_2_id = '-1'
@@ -130,27 +132,29 @@ def AddNewSession(id):
 
 # WORK
 def DeleteSession(id):
+    id_session = SelectFromTable("users", id, "session")[0]
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
     id = str(id)
     cur.execute(f"""
-        DELETE FROM sessions WHERE player_1_id = '{id}';
+        DELETE FROM sessions WHERE id = '{id_session}';
     """)
     conn.close()
 
-# NEED TO CHECK
+# WORK
 def GetQuestion(id):
     user_exists = ExistsInDB("users", id)
     if user_exists == True:
         session_id, state = SelectFromTable("users", id, "session, state")
-        if session_id != '-1' and str(state) != '-3':
-            answer_id = SelectFromTable("sessions", session_id, "answer_id")
+        if str(session_id) != '-1' and str(state) != '-3':
+            answer_id = (SelectFromTable("sessions", "'" + session_id + "'", "answer_id"))[0]
             text_question = SelectFromTable("questions", answer_id, "text_question")
-            return text_question
+            return str(text_question[0])
         else:
             return None
 
+# WORK
 def GetAnswerAndWord(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
@@ -165,12 +169,36 @@ def GetAnswerAndWord(id):
             answer = res[0]
             current_word = res[1]
             answer = cur.execute(f"SELECT answer FROM questions WHERE id = '{answer}'").fetchone()
-            print("hh")
             return (answer[0], current_word)
         else:
             return -1, -1
     else:
         return -1, -1
+
+def WinGame(winner, loser, id_session):
+    countwin = int(SelectFromTable("users", winner, "countwin")[0])
+    countlose = int(SelectFromTable("users", loser, "countwin")[0])
+    UpdateTable("users", "countwin", countwin + 1, winner)
+    UpdateTable("users", "countlose", countlose + 1, loser)
+    UpdateTable("users", "state", "-3", winner)
+    UpdateTable("users", "state", "-3", loser)
+    UpdateTable("users", "session", "-1", winner)
+    UpdateTable("users", "session", "-1", loser)
+    DeleteSession(id_session)
+
+def NextPlayerMove(id):
+    id_session = SelectFromTable("users", id, "session")[0]
+    player_1_id, player_2_id = SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id") 
+    if str(id) == str(player_1_id):
+        UpdateTable("users", "state", 1, player_1_id)
+        UpdateTable("users", "state", 0, player_2_id)
+        Telegramm_Core.SendMessage(player_1_id, text = "Начался ход противника.")
+        Telegramm_Core.SendMessage(player_2_id, text = "Ваш ход")
+    else:
+        UpdateTable("users", "state", 0, player_1_id)
+        UpdateTable("users", "state", 1, player_2_id)
+        Telegramm_Core.SendMessage(player_2_id, text = "Начался ход противника.")
+        Telegramm_Core.SendMessage(player_1_id, text = "Ваш ход")
 
 def GetState(id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
@@ -191,6 +219,8 @@ def NewGame(id, token):
     if res[0] == 1:
         res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
         ### ЕСЛИ ИГРА УЖЕ ИДЕТ И ТЫ ПЕРЕСОЗДАЕШЬ ТО ТЕБЕ ПОРАЖЕНИЕ ВРАГУ ПОБЕДА
+        ### ЕСЛИ У ТЕБЯ УЖЕ ИДЕТ ИГРА - ПЕРЕСОЗДАТЬ НЕЛЬЗЯ
+    ### ЕСЛИ ТЫ ПОДКЛЮЧАЕШЬСЯ К ИГРЕ И ТАМ НЕ СОВПАДАЕТ С ТВОЕЙ ТЕКУЩЕЙ СЕССИИ, ТО НУЖНО УДАЛИТЬ ТУ СЕССИЮ КОТОРАЯ БУДЕТ ПУСТОЙ
         if res[0] == 1:
             res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
             player_1_id = res[0]
@@ -208,6 +238,7 @@ def NewGame(id, token):
                     new_res = cur.execute(f"""
                     UPDATE users SET session = '{token}' WHERE id = '{id}'
                     """)
+
                     if first_player == 0:
                         new_res = cur.execute(f"""
                         UPDATE users SET state = 0 WHERE id = '{player_1_id}'
@@ -222,7 +253,25 @@ def NewGame(id, token):
                         new_res = cur.execute(f"""
                         UPDATE users SET state = 1 WHERE id = '{player_1_id}'
                         """)
-                    Telegramm_Core.SendQuestion(player_1_id, player_2_id, first_player)
+                        
+                    question = GetQuestion(player_1_id)
+                    Telegramm_Core.SendMessage(player_1_id, "Игра началась!")
+                    Telegramm_Core.SendMessage(player_2_id, "Игра началась!")
+                    Telegramm_Core.SendMessage(player_1_id, question)
+                    Telegramm_Core.SendMessage(player_2_id, question)
+
+                    closed_answer = GetAnswerAndWord(player_1_id)[1]
+                    Telegramm_Core.SendMessage(player_1_id, "Слово: " + closed_answer)
+                    Telegramm_Core.SendMessage(player_2_id, "Слово: " + closed_answer)
+
+                    if first_player == 0:
+                        Telegramm_Core.SendMessage(player_1_id, "Ваш ход")
+                        Telegramm_Core.SendMessage(player_2_id, "Сейчас идёт ход противника")
+                    else:
+                        Telegramm_Core.SendMessage(player_2_id, "Ваш ход")
+                        Telegramm_Core.SendMessage(player_1_id, "Сейчас идёт ход противника")
+
+                    
             else:
                 Telegramm_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
         else:
@@ -291,7 +340,6 @@ def CreateDBs():
             session TEXT);
         """)
         print("USERS DATABASE CREATE")
-        ## DEL THIS ##
 
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS sessions(
@@ -302,7 +350,6 @@ def CreateDBs():
             player_2_id TEXT);
         """)
         print("USERS SESSIONS CREATE")
-        ## DEL THIS ##
 
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS questions(
@@ -311,13 +358,9 @@ def CreateDBs():
             text_question TEXT);
         """)
         print("USERS QUESTIONS CREATE")
-        ## DEL THIS ##
-
-        cur.executescript(f"""
-        INSERT INTO questions VALUES
-        ('1','{answer}', '{text_question}');
-        """)
-        ## DEL THIS ##
+        
+        InsertInTable("questions", "1", answer, text_question)
+        print(answer, text_question)
         print("QUESTION 1 READY")
 
 def RecreateDBs():
@@ -339,6 +382,7 @@ def ExistsInDB(table, id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
+    print(f"SELECT EXISTS(SELECT * FROM {table} WHERE id = '{id}')")
     res = cur.execute(f"SELECT EXISTS(SELECT * FROM '{table}' WHERE id = '{id}')").fetchone()
     is_exists = res[0]
     conn.close()
@@ -349,7 +393,6 @@ def InsertInTable(table, *args):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
-    print(args)
     count_args = str(len(args) * "?,")[:-1]
     cur.execute(f"INSERT INTO '{table}' VALUES ({count_args})", args)
     conn.close()
@@ -358,7 +401,8 @@ def SelectFromTable(table, id, values):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
-    res = cur.execute(f"SELECT {values} FROM {table} WHERE id = '{id}'").fetchone()
+    print(f"SELECT {values} FROM {table} WHERE id = {id}")
+    res = cur.execute(f"SELECT {values} FROM {table} WHERE id = {id}").fetchone()
     conn.close()
     return list(res)
 
@@ -366,5 +410,6 @@ def UpdateTable(table, changeable_field, value, id):
     conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
     conn.isolation_level = None
     cur = conn.cursor()
+    print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
     cur.execute(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
     conn.close()

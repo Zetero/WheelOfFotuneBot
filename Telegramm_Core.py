@@ -52,7 +52,11 @@ def StartNewGame(message):
 @bot.message_handler(commands = [SEND_QUESTION_COMMAND])
 def SendQuestionText(message):
     clientId = message.chat.id
-    SendQuestion(clientId, None)
+    question = SQL_Core.GetQuestion(clientId)
+    if question == None:
+        bot.send_message(chat_id = clientId, text = f"Чтобы получить вопрос - сначала начните игру.", parse_mode = "Markdown")
+    else:
+        SendMessage(clientId, f"Ваш вопрос:\n{question}")
 
 @bot.message_handler(commands = [FULL_INFO_COMMAND])
 def SendFullInfo(message):
@@ -93,26 +97,9 @@ def Msg_Handler(message):
         if SQL_Core.GetState(clientId) == 0:
             Interface_Core.NextRound(clientId, message.text)
         elif SQL_Core.GetState(clientId) == 1:
-            bot.send_message(chat_id = clientId, text = "Сейчас ход противника, олень!", parse_mode = "Markdown")
-        ## Переделать мб?
+            bot.send_message(chat_id = clientId, text = "Сейчас ход противника", parse_mode = "Markdown")
         else:
             bot.send_message(chat_id = clientId, text = f"Напишите /{HELP_COMMAND} для дополнительной информации о функционале бота.", parse_mode = "Markdown")
-
-def SendQuestion(id1, id2, first_player):
-    question = SQL_Core.GetQuestion(id1)
-    if id1 != None:
-        bot.send_message(chat_id = id1, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
-    if id2 != None:
-        bot.send_message(chat_id = id2, text = f"Ваш вопрос:\n{question}", parse_mode = "Markdown")
-    if question == None:
-        bot.send_message(chat_id = id2, text = f"Чтобы получить вопрос - сначала начните игру.", parse_mode = "Markdown")
-    
-    if first_player == 0:
-        bot.send_message(chat_id = id1, text = f"Ваш ход:\nВведите букву:", parse_mode = "Markdown")
-        bot.send_message(chat_id = id2, text = f"Сейчас идёт ход противника:", parse_mode = "Markdown")
-    else:
-        bot.send_message(chat_id = id2, text = f"Ваш ход:\nВведите букву:", parse_mode = "Markdown")
-        bot.send_message(chat_id = id1, text = f"Сейчас идёт ход противника:", parse_mode = "Markdown")
 
 def SendMessage(id, text):
     bot.send_message(chat_id = id, text = f"{text}", parse_mode = "Markdown")
