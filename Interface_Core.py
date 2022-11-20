@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from enum import Enum
 import re
-import DatabaseQueryHandlerClass
 import Bot_Core
 
 class State(Enum):
@@ -12,18 +11,18 @@ class State(Enum):
     NextStep = 1
     Winner = 2
 
-def NextRound(id, letter):
-    answer, word = DatabaseQueryHandlerClass.GetAnswerAndWord(id)
+def NextRound(id, letter, database):
+    answer, word = database.GetAnswerAndWord(id)
     word = str(word)
-    id_session = DatabaseQueryHandlerClass.SelectFromTable("users", id, "session")[0] 
-    player_1_id, player_2_id = DatabaseQueryHandlerClass.SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id") 
+    id_session = database.SelectFromTable("users", id, "session")[0] 
+    player_1_id, player_2_id = database.SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id") 
                 
     if answer != -1 and word != -1:
         answer = str(answer).upper()
         letter = str(letter)
         letter = letter.upper()
 
-        if len(letter) == 1 and (bool(re.search("[а-яА-Я]", letter)) == True):
+        if len(letter) == 1 and (bool(re.search("[а-яА-ЯеЁ]", letter)) == True):
             if letter in word: 
                 Bot_Core.SendMessage(id, "Такая буква уже есть в слове.")
             elif letter in answer and len(letter) == 1:
@@ -33,7 +32,7 @@ def NextRound(id, letter):
                 for ind in all_ind:
                     word[ind] = letter
                 word = "".join(word)
-                DatabaseQueryHandlerClass.UpdateTable("sessions", "current_word", word, id_session)
+                database.UpdateTable("sessions", "current_word", word, id_session)
                 if str(id) == str(player_1_id):
                     Bot_Core.SendMessage(id, "Слово: " + str(word))
                     Bot_Core.SendMessage(player_2_id, f"Соперник назвал букву \"{letter}\"")
@@ -48,7 +47,7 @@ def NextRound(id, letter):
                     Bot_Core.SendMessage(player_1_id, f"В слове нет буквы: \"{letter}\"")
                 else:
                     Bot_Core.SendMessage(player_2_id, f"В слове нет буквы: \"{letter}\"")
-                DatabaseQueryHandlerClass.NextPlayerMove(id)
+                database.NextPlayerMove(id)
                 
         elif (bool(re.search("[а-яА-Я]", letter)) == False):
             Bot_Core.SendMessage(id, "Только русские символы.")
@@ -56,7 +55,7 @@ def NextRound(id, letter):
             if letter == answer:
                 if str(id) == str(player_1_id):
                     Bot_Core.SendMessage(player_1_id, "Вы назвали все слово сразу! Вы победитель!")
-                    DatabaseQueryHandlerClass.WinGame(player_1_id, player_2_id, id_session)
+                    database.WinGame(player_1_id, player_2_id, id_session)
                     Bot_Core.SendMessage(player_2_id, f"Противник назвал все слово сразу!\nПравильный ответ был: {answer}\nУвы, вы проиграли.")       
                 else:
                     Bot_Core.SendMessage(player_2_id, "Вы назвали все слово сразу! Вы победитель!")
@@ -67,7 +66,7 @@ def NextRound(id, letter):
         if word == answer:
             if str(id) == str(player_1_id):
                 Bot_Core.SendMessage(player_1_id, "Вы победитель!")
-                DatabaseQueryHandlerClass.WinGame(player_1_id, player_2_id, id_session)
+                database.WinGame(player_1_id, player_2_id, id_session)
                 Bot_Core.SendMessage(player_2_id, f"Противник открыл все слово!\nПравильный ответ был: {answer}\nУвы, вы проиграли.")       
             else:
                 Bot_Core.SendMessage(player_2_id, "Вы победитель!")
