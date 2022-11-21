@@ -4,6 +4,7 @@ import os
 import shutil
 import Bot_Core
 import random as r
+import json
 
 answer = "Кошелёк"
 text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
@@ -18,8 +19,9 @@ class DatabaseQueryHandler():
 
 # Наследник
 class SQL_DB(DatabaseQueryHandler):
-    def __init__(self, DB_path):
+    def __init__(self, DB_path, json_path):
         self.DB_path = DB_path
+        self.json_path = json_path
 
     def CreateDBs(self):
         if os.path.exists(self.DB_path + "\\DATABASEs"):
@@ -57,11 +59,10 @@ class SQL_DB(DatabaseQueryHandler):
                 text_question TEXT);
             """)
             print("USERS QUESTIONS CREATE")
-            
-            self.InsertInTable("questions", "1", answer, text_question)
-            print(answer, text_question)
-            print("QUESTION 1 READY")
 
+            self.QuestionTableFill()
+            print("QUESTION TABLE FILLED")
+            
     def AddUserToDB(self, id):
         user_exists = self.ExistsInDB("users", id)
         if user_exists == False:
@@ -100,13 +101,13 @@ class SQL_DB(DatabaseQueryHandler):
                 if session_id_exists == False:
                     is_uniq_token = True
 
-            # 1 - сделанный мной индекс
-            answer = self.SelectFromTable("questions", "1", "answer")
+            # рандомный - сделанный мной индекс
+            id_question = r.randint(0,100)
+            answer = self.SelectFromTable("questions", str(id_question), "answer")
             encrypted_word = len(answer[0]) * '🟦'
-            question_id = '1'
             player_1_id = str(id)
             player_2_id = '-1'
-            self.InsertInTable("sessions", session_id, encrypted_word, question_id, player_1_id, player_2_id)
+            self.InsertInTable("sessions", session_id, encrypted_word, id_question, player_1_id, player_2_id)
             self.UpdateTable("users", "session", session_id, player_1_id)
             return session_id
         else:
@@ -325,3 +326,14 @@ class SQL_DB(DatabaseQueryHandler):
         print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         cur.execute(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         conn.close()
+
+    def QuestionTableFill(self):
+        json_object = ''
+        with open(self.json_path, "r", encoding = "utf-8") as f:
+            json_object = json.load(f)
+        
+        for field in range(101):
+            print(json_object[field]["id"])
+            self.InsertInTable("questions", str(json_object[field]["id"]), json_object[field]["answer"], json_object[field]["question"])
+        #print(answer, text_question)
+        #print("QUESTION 1 READY")

@@ -122,7 +122,7 @@ def SendMessage(id, text):
 if __name__ == "__main__":
     database = ''
     if database_engine == "SQLLITE":
-        database = SQL_DB(database_path)
+        database = SQL_DB(database_path, "D:\\Projects\\GitHub\\WheelOfFotuneBot\\json_path.json")
     if first_launch == "Y":
         database.CreateDBs()
     bot.polling(none_stop = True)
