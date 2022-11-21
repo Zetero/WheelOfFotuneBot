@@ -4,6 +4,7 @@ import os
 import shutil
 import Bot_Core
 import random as r
+import json
 
 answer = "Кошелёк"
 text_question = "В Греции на новый год гости кладут на порог хозяйна камень, желая ему чтобы эта вещь весила столько не меньше. Что это за вещь?"
@@ -18,13 +19,15 @@ class DatabaseQueryHandler():
 
 # Наследник
 class SQL_DB(DatabaseQueryHandler):
-    def __init__(self, DB_path):
+    def __init__(self, DB_path, json_path):
         self.DB_path = DB_path
+        self.json_path = json_path
+        self.json_len = 5
 
     def CreateDBs(self):
         if os.path.exists(self.DB_path + "\\DATABASEs"):
             shutil.rmtree(self.DB_path + "\\DATABASEs", ignore_errors = True)
-            print("DATABASE CLEAR")
+            #print("DATABASE CLEAR")
 
         if (os.path.exists(self.DB_path + "\\DATABASEs")) == False:
             os.mkdir(self.DB_path + "\\DATABASEs")
@@ -38,7 +41,7 @@ class SQL_DB(DatabaseQueryHandler):
                 state INT,
                 session TEXT);
             """)
-            print("USERS DATABASE CREATE")
+            #print("USERS DATABASE CREATE")
 
             cur.executescript("""
             CREATE TABLE IF NOT EXISTS sessions(
@@ -48,7 +51,7 @@ class SQL_DB(DatabaseQueryHandler):
                 player_1_id TEXT,
                 player_2_id TEXT);
             """)
-            print("USERS SESSIONS CREATE")
+            #print("USERS SESSIONS CREATE")
 
             cur.executescript("""
             CREATE TABLE IF NOT EXISTS questions(
@@ -56,12 +59,11 @@ class SQL_DB(DatabaseQueryHandler):
                 answer TEXT,
                 text_question TEXT);
             """)
-            print("USERS QUESTIONS CREATE")
-            
-            self.InsertInTable("questions", "1", answer, text_question)
-            print(answer, text_question)
-            print("QUESTION 1 READY")
+            #print("USERS QUESTIONS CREATE")
 
+            self.QuestionTableFill()
+            #print("QUESTION TABLE FILLED")
+            
     def AddUserToDB(self, id):
         user_exists = self.ExistsInDB("users", id)
         if user_exists == False:
@@ -74,6 +76,37 @@ class SQL_DB(DatabaseQueryHandler):
             return True
         else:
             return False
+
+    def AddNewSession(self, id):
+        user_exists = self.ExistsInDB("users", id)
+        if user_exists == True:
+            session_id = str(self.SelectFromTable("users", id, "session")[0])
+            state = self.SelectFromTable("users", id, "state")
+            if session_id != "-1" and state == "-3":
+                self.DeleteSession(session_id)
+            if session_id != "-1" and state != "-3":
+                Bot_Core.SendMessage(id, "Чтобы начать игру закончите текущую или сдайтесь")
+            else:
+                is_uniq_token = False
+                session_id = ''
+
+                while is_uniq_token == False:
+                    session_id = self.GenerateToken()
+                    session_id_exists = self.ExistsInDB("sessions", session_id)
+                    if session_id_exists == False:
+                            is_uniq_token = True
+
+                # рандомный - сделанный мной индекс
+                id_question =  r.randint(1, self.json_len)
+                answer = self.SelectFromTable("questions", str(id_question), "answer")
+                encrypted_word = len(answer[0]) * '🟦'
+                player_1_id = str(id)
+                player_2_id = '-1'
+                self.InsertInTable("sessions", session_id, encrypted_word, id_question, player_1_id, player_2_id)
+                self.UpdateTable("users", "session", session_id, player_1_id)
+                return session_id
+        else:
+            return None
 
     def InfoAboutUser(self, id):
         user_exists = self.ExistsInDB("users", id)
@@ -88,40 +121,7 @@ class SQL_DB(DatabaseQueryHandler):
             return list(self.SelectFromTable("users", id, "id, countwin, countlose, state, session"))
         else:
             return None
-
-    def AddNewSession(self, id):
-        user_exists = self.ExistsInDB("users", id)
-        if user_exists == True:
-            is_uniq_token = False
-            session_id = ''
-            while is_uniq_token == False:
-                session_id = self.GenerateToken()
-                session_id_exists = self.ExistsInDB("sessions", session_id)
-                if session_id_exists == False:
-                    is_uniq_token = True
-
-            # 1 - сделанный мной индекс
-            answer = self.SelectFromTable("questions", "1", "answer")
-            encrypted_word = len(answer[0]) * '🟦'
-            question_id = '1'
-            player_1_id = str(id)
-            player_2_id = '-1'
-            self.InsertInTable("sessions", session_id, encrypted_word, question_id, player_1_id, player_2_id)
-            self.UpdateTable("users", "session", session_id, player_1_id)
-            return session_id
-        else:
-            return None
-
-    def DeleteSession(self, id_session):
-        conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-        conn.isolation_level = None
-        cur = conn.cursor()
-        id = str(id_session)
-        cur.execute(f"""
-            DELETE FROM sessions WHERE id = '{id_session}';
-        """)
-        conn.close()
-
+   
     def GetQuestion(self, id):
         user_exists = self.ExistsInDB("users", id)
         if user_exists == True:
@@ -148,16 +148,105 @@ class SQL_DB(DatabaseQueryHandler):
         else:
             return None, None
 
+    def DeleteSession(self, id_session):
+        conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+        conn.isolation_level = None
+        cur = conn.cursor()
+        id = str(id_session)
+        cur.execute(f"""
+            DELETE FROM sessions WHERE id = '{id_session}';
+        """)
+        conn.close()
+
+    def NewGame(self, id, token):
+        user_exists = self.ExistsInDB("users", id)
+        if user_exists:
+            session_exists = self.ExistsInDB("sessions", token)
+            if session_exists:
+                player_1_id = self.SelectFromTable("sessions", "'" + token + "'", "player_1_id")[0]
+                player_2_id = id
+                if str(player_2_id) != str(player_1_id):
+                    first_player = 0
+                    first_player = r.randint(0,1)
+                    self.UpdateTable("sessions", "player_2_id", id, token)
+                    self.UpdateTable("users", "session", token, id)
+                    if first_player == 0:
+                        self.UpdateTable("users", "state", "0", player_1_id)
+                        self.UpdateTable("users", "state", "1", player_2_id)
+                    else:
+                        self.UpdateTable("users", "state", "1", player_1_id)
+                        self.UpdateTable("users", "state", "0", player_2_id)
+                                                    
+                    question = self.GetQuestion(player_1_id)
+                    Bot_Core.SendMessage(player_1_id, "Игра началась!")
+                    Bot_Core.SendMessage(player_2_id, "Игра началась!")
+                    Bot_Core.SendMessage(player_1_id, question)
+                    Bot_Core.SendMessage(player_2_id, question)
+
+                    closed_answer = self.GetAnswerAndWord(player_1_id)[1]
+                    Bot_Core.SendMessage(
+                        player_1_id, "Слово: " + closed_answer)
+                    Bot_Core.SendMessage(
+                        player_2_id, "Слово: " + closed_answer)
+
+                    if first_player == 0:
+                        Bot_Core.SendMessage(player_1_id, "Ваш ход")
+                        Bot_Core.SendMessage(
+                            player_2_id, "Сейчас идёт ход противника")
+                    else:
+                        Bot_Core.SendMessage(player_2_id, "Ваш ход")
+                        Bot_Core.SendMessage(
+                            player_1_id, "Сейчас идёт ход противника")
+                else:
+                    Bot_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
+            else:
+                Bot_Core.SendMessage(id, "Такой сессии не существует..")
+        else:
+            Bot_Core.SendMessage(id, "Создайте пользователя с помощью команды /start")
+
     def WinGame(self, winner, loser, id_session):
         countwin = int(self.SelectFromTable("users", winner, "countwin")[0])
-        countlose = int(self.SelectFromTable("users", loser, "countwin")[0])
+        countlose = int(self.SelectFromTable("users", loser, "countlose")[0])
         self.UpdateTable("users", "countwin", countwin + 1, winner)
         self.UpdateTable("users", "countlose", countlose + 1, loser)
+
         self.UpdateTable("users", "state", "-3", winner)
         self.UpdateTable("users", "state", "-3", loser)
+
         self.UpdateTable("users", "session", "-1", winner)
         self.UpdateTable("users", "session", "-1", loser)
         self.DeleteSession(id_session)
+
+    def Surrender(self, id):
+        id = str(id)
+        # Проверку на существование пользователя / игры
+        id_session = self.SelectFromTable("users", id, "session")[0]
+        if(str(id_session) != '-1'):
+            player_1_id, player_2_id = self.SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id")
+            if (player_2_id != '-1'):
+                if str(id) == str(player_1_id):
+                    countlose = int(self.SelectFromTable("users", player_1_id, "countlose")[0]) + 1
+                    self.UpdateTable("users", "countlose", str(countlose), player_1_id)
+                    countwin = int(self.SelectFromTable("users", player_2_id, "countwin")[0]) + 1
+                    self.UpdateTable("users", "countwin", str(countwin), player_2_id)
+                    Bot_Core.SendMessage(player_1_id, "Вам засчитано поражение")
+                    Bot_Core.SendMessage(player_2_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
+                elif str(id) == str(player_2_id):
+                    countlose = int(self.SelectFromTable("users", player_2_id, "countlose")[0]) + 1
+                    self.UpdateTable("users", "countlose", str(countlose), player_2_id)
+                    countwin = int(self.SelectFromTable("users", player_1_id, "countwin")[0]) + 1
+                    self.UpdateTable("users", "countwin", str(countwin), player_1_id)
+                    Bot_Core.SendMessage(player_2_id, "Вам засчитано поражение")
+                    Bot_Core.SendMessage(player_1_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
+
+                self.UpdateTable("users", "session", "-1", player_1_id)
+                self.UpdateTable("users", "session", "-1", player_2_id)
+                self.UpdateTable("users", "state", "-3", player_1_id)
+                self.UpdateTable("users", "state", "-3", player_2_id)
+                self.DeleteSession(id_session)
+            elif (id_session != '-1'):
+                self.DeleteSession(id_session)
+                Bot_Core.SendMessage(id, "Вы сдались до начала игры. Это поражение не идет в общий счёт")
 
     def NextPlayerMove(self, id):
         id_session = self.SelectFromTable("users", id, "session")[0]
@@ -183,118 +272,17 @@ class SQL_DB(DatabaseQueryHandler):
             player_state = self.SelectFromTable("users", id, "state")[0]
             return player_state
 
-    def NewGame(self, id, token):
-        conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
-        conn.isolation_level = None
-        cur = conn.cursor()
-        id = str(id)
-        res = cur.execute(f"SELECT EXISTS(SELECT * FROM users WHERE id = '{id}')").fetchone()
-        if res[0] == 1:
-            res = cur.execute(f"SELECT EXISTS(SELECT * FROM sessions WHERE id = '{token}')").fetchone()
-            ### ЕСЛИ ИГРА УЖЕ ИДЕТ И ТЫ ПЕРЕСОЗДАЕШЬ ТО ТЕБЕ ПОРАЖЕНИЕ ВРАГУ ПОБЕДА
-            ### ЕСЛИ У ТЕБЯ УЖЕ ИДЕТ ИГРА - ПЕРЕСОЗДАТЬ НЕЛЬЗЯ
-        ### ЕСЛИ ТЫ ПОДКЛЮЧАЕШЬСЯ К ИГРЕ И ТАМ НЕ СОВПАДАЕТ С ТВОЕЙ ТЕКУЩЕЙ СЕССИИ, ТО НУЖНО УДАЛИТЬ ТУ СЕССИЮ КОТОРАЯ БУДЕТ ПУСТОЙ
-            if res[0] == 1:
-                res = cur.execute(f"SELECT player_1_id FROM sessions WHERE id = '{token}';").fetchone()
-                player_1_id = res[0]
-                player_2_id = id
-                if str(player_2_id) != str(player_1_id):
-                    res = cur.execute(f"""
-                        SELECT EXISTS(SELECT * FROM sessions WHERE id  = '{token}');
-                    """)
-                    first_player = 0
-                    if res.fetchone()[0] == 1:
-                        first_player = r.randint(0,1)
-                        new_res = cur.execute(f"""
-                        UPDATE sessions SET player_2_id = '{id}' WHERE id = '{token}'
-                        """)
-                        new_res = cur.execute(f"""
-                        UPDATE users SET session = '{token}' WHERE id = '{id}'
-                        """)
-
-                        if first_player == 0:
-                            new_res = cur.execute(f"""
-                            UPDATE users SET state = 0 WHERE id = '{player_1_id}'
-                            """)
-                            new_res = cur.execute(f"""
-                            UPDATE users SET state = 1 WHERE id = '{player_2_id}'
-                            """)
-                        else:
-                            new_res = cur.execute(f"""
-                            UPDATE users SET state = 0 WHERE id = '{player_2_id}'
-                            """)
-                            new_res = cur.execute(f"""
-                            UPDATE users SET state = 1 WHERE id = '{player_1_id}'
-                            """)
-                            
-                        question = self.GetQuestion(player_1_id)
-                        Bot_Core.SendMessage(player_1_id, "Игра началась!")
-                        Bot_Core.SendMessage(player_2_id, "Игра началась!")
-                        Bot_Core.SendMessage(player_1_id, question)
-                        Bot_Core.SendMessage(player_2_id, question)
-
-                        closed_answer = self.GetAnswerAndWord(player_1_id)[1]
-                        Bot_Core.SendMessage(player_1_id, "Слово: " + closed_answer)
-                        Bot_Core.SendMessage(player_2_id, "Слово: " + closed_answer)
-
-                        if first_player == 0:
-                            Bot_Core.SendMessage(player_1_id, "Ваш ход")
-                            Bot_Core.SendMessage(player_2_id, "Сейчас идёт ход противника")
-                        else:
-                            Bot_Core.SendMessage(player_2_id, "Ваш ход")
-                            Bot_Core.SendMessage(player_1_id, "Сейчас идёт ход противника")
-
-                        
-                else:
-                    Bot_Core.SendMessage(id, "Нельзя подключиться к своей же сессии.")
-            else:
-                Bot_Core.SendMessage(id, "Такой сессии не существует..")
-        else:
-            Bot_Core.SendMessage(id, "Создайте пользователя с помощью команды /start")
-
-    def Surrender(self, id):
-        id = str(id)
-        # Проверку на существование пользователя / игры
-        id_session = self.SelectFromTable("users", id, "session")[0]
-        if(str(id_session) != '-1'):
-            player_1_id, player_2_id = self.SelectFromTable("sessions", "'" + id_session + "'", "player_1_id, player_2_id")
-            if (player_2_id != '-1'):
-                if str(id) == str(player_1_id):
-                    countlose = int(self.SelectFromTable("users", player_1_id, "countlose")[0]) + 1
-                    self.UpdateTable("users", "countlose", str(countlose), player_1_id)
-                    countwin = int(self.SelectFromTable("users", player_2_id, "countwin")[0]) + 1
-                    self.UpdateTable("users", "countwin", str(countwin), player_2_id)
-                    Bot_Core.SendMessage(player_1_id, "Вам засчитано поражение.")
-                    Bot_Core.SendMessage(player_2_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
-                elif str(id) == str(player_2_id):
-                    countlose = int(self.SelectFromTable("users", player_2_id, "countlose")[0]) + 1
-                    self.UpdateTable("users", "countlose", str(countlose), player_2_id)
-                    countwin = int(self.SelectFromTable("users", player_1_id, "countwin")[0]) + 1
-                    self.UpdateTable("users", "countwin", str(countwin), player_1_id)
-                    Bot_Core.SendMessage(player_2_id, "Вам засчитано поражение.")
-                    Bot_Core.SendMessage(player_1_id, "Ваш противник сдался. Поздравляем с преждевременной победой!")
-
-                self.UpdateTable("users", "session", "-1", player_1_id)
-                self.UpdateTable("users", "session", "-1", player_2_id)
-                self.UpdateTable("users", "state", "-3", player_1_id)
-                self.UpdateTable("users", "state", "-3", player_2_id)
-                self.DeleteSession(id_session)
-            elif (id_session != '-1'):
-                self.DeleteSession(id_session)
-                Bot_Core.SendMessage(id, "Вы сдались до начала игры. Это поражение не идет в общий счёт.")
-
     def GenerateToken(self):
         token = ''
         for i in range(4):
             token += chr(r.randint(97,122))
         return token
 
-    # Check if object exists in DB
     def ExistsInDB(self, table, id):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"SELECT EXISTS(SELECT * FROM {table} WHERE id = '{id}')")
+        #print(f"SELECT EXISTS(SELECT * FROM {table} WHERE id = '{id}')")
         res = cur.execute(f"SELECT EXISTS(SELECT * FROM '{table}' WHERE id = '{id}')").fetchone()
         is_exists = res[0]
         conn.close()
@@ -313,7 +301,7 @@ class SQL_DB(DatabaseQueryHandler):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"SELECT {values} FROM {table} WHERE id = {id}")
+        #print(f"SELECT {values} FROM {table} WHERE id = {id}")
         res = cur.execute(f"SELECT {values} FROM {table} WHERE id = {id}").fetchone() 
         conn.close()
         return list(res)
@@ -322,6 +310,18 @@ class SQL_DB(DatabaseQueryHandler):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
+        #print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         cur.execute(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         conn.close()
+
+    def QuestionTableFill(self):
+        conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
+        conn.isolation_level = None
+        cur = conn.cursor()
+        
+        json_object = ''
+        with open(self.json_path, "r", encoding = "utf-8") as f:
+            json_object = json.load(f)
+        self.json_len = len(json_object)
+        cur.executemany("INSERT INTO questions VALUES (:id, :answer, :question)", json_object)
+        #print("FAST FILL QUESTION TABLE")
