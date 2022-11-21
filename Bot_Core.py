@@ -17,7 +17,7 @@ SURRENDER_COMMAND = "surrender"
 bot = telebot.TeleBot(token = "5402715304:AAGqXbYSTkiC6GCvD7OCUJP57dbW_-jK704")
 database_engine = 'SQLLITE'
 database_path = os.path.dirname(__file__)
-first_launch = "Y"
+first_launch = "N"
 database = ''
 
 parser = argparse.ArgumentParser(description = "Parse args")
@@ -43,13 +43,18 @@ if args.database_path:
 if args.first_lauch:
     first_launch = args.first_lauch
 
+@bot.message_handler(commands = [HELP_COMMAND])
+def SendHelp(message):
+    clientId = message.chat.id
+    SendHelpMessage(clientId)
+
 @bot.message_handler(commands = [CREATE_USER_COMMAND, "start"])
-def CreateUserTable(message):
+def CreateUser(message):
     clientId = message.chat.id
     if database.AddUserToDB(clientId):
-        bot.send_message(chat_id = clientId, text= "Пользователь создан!", parse_mode = "Markdown", reply_markup = None)
+        bot.send_message(chat_id = clientId, text= "✅ Пользователь создан ✅", parse_mode = "html", reply_markup = None)
     else:
-        bot.send_message(chat_id = clientId, text= "Пользователь уже существует!", parse_mode = "Markdown", reply_markup = None)
+        bot.send_message(chat_id = clientId, text= "❌ Пользователь уже существует ❌", parse_mode = "html", reply_markup = None)
 
 @bot.message_handler(commands = [INFO_COMMAND])
 def SendInfo(message):
@@ -58,9 +63,9 @@ def SendInfo(message):
     if countlose != None:
         bot.send_message(chat_id = clientId, text = f"""
         😎  Количество ваших побед: {countwin}\n😔  Количество ваших поражений: {countlose}
-        """, parse_mode = "Markdown")
+        """, parse_mode = "html")
     else:
-        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
+        SendHelpMessage(clientId)
 
 @bot.message_handler(commands = [SURRENDER_COMMAND])
 def Surrender(message):
@@ -72,18 +77,22 @@ def StartNewGame(message):
     clientId = message.chat.id
     token = database.AddNewSession(clientId)
     if token != None:
-        bot.send_message(chat_id = clientId, text = "Ваш токен сессии: "+ token, parse_mode = "Markdown")
+        bot.send_message(chat_id = clientId, text = "🔑 Ваш токен сессии: "+ token, parse_mode = "html")
     else:
-        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
+        SendHelpMessage(clientId)
 
 @bot.message_handler(commands = [SEND_QUESTION_COMMAND])
 def SendQuestionText(message):
     clientId = message.chat.id
-    question = database.GetQuestion(clientId)
-    if question == None:
-        bot.send_message(chat_id = clientId, text = f"Чтобы получить вопрос - сначала начните игру.", parse_mode = "Markdown")
+    user_exists = database.ExistsInDB("users", id = clientId)
+    if user_exists == True:
+        question = database.GetQuestion(clientId)
+        if question == None:
+            bot.send_message(chat_id = clientId, text = f"❌ Чтобы получить вопрос - сначала начните игру ❌", parse_mode = "html")
+        else:
+            SendMessage(clientId, f"Ваш вопрос:\n{question}")
     else:
-        SendMessage(clientId, f"Ваш вопрос:\n{question}")
+        SendHelpMessage(clientId)
 
 @bot.message_handler(commands = [FULL_INFO_COMMAND])
 def SendFullInfo(message):
@@ -99,9 +108,9 @@ def SendFullInfo(message):
 
     if all_info != None:
         bot.send_message(chat_id = clientId, text = f"Info:\nID: {str(all_info[0])}\nCount Win: {str(all_info[1])}\n\
-Count Lose: {str(all_info[2])}\nState: {str(state)}\nSession: {str(all_info[4])}\n", parse_mode = "Markdown")
+Count Lose: {str(all_info[2])}\nState: {str(state)}\nSession: {str(all_info[4])}\n", parse_mode = "html")
     else:
-        bot.send_message(chat_id = clientId, text = f"Пользователь не найден. Напишите боту /{CREATE_USER_COMMAND} для создания пользователя", parse_mode = "Markdown")
+        SendHelpMessage(clientId)
 
 @bot.message_handler()
 def Msg_Handler(message):
@@ -112,12 +121,29 @@ def Msg_Handler(message):
         if database.GetState(clientId) == 0:
             Interface_Core.NextRound(clientId, message.text, database)
         elif database.GetState(clientId) == 1:
-            bot.send_message(chat_id = clientId, text = "Сейчас ход противника", parse_mode = "Markdown")
+            bot.send_message(chat_id = clientId, text = "❌ Сейчас ход противника ❌", parse_mode = "html")
         else:
-            bot.send_message(chat_id = clientId, text = f"Напишите /{HELP_COMMAND} для дополнительной информации о функционале бота.", parse_mode = "Markdown")
+            bot.send_message(chat_id = clientId, text = f"❔ Напишите /{HELP_COMMAND} для дополнительной информации о функционале бота ❔", parse_mode = "html")
 
 def SendMessage(id, text):
-    bot.send_message(chat_id = id, text = f"{text}", parse_mode = "Markdown")
+    bot.send_message(chat_id = id, text = f"{text}", parse_mode = "html")
+
+def SendHelpMessage(clientId):
+    clientId
+    bot.send_message(chat_id = clientId, text=f"""
+🍀Вас приветствует игровой бот "Поле Чудес"! 🍀
+Для того чтобы начать игру - вам потребуется создать пользователя
+Не переживайте. Для этого вам не нужно куда-то лезть и регистрироваться.
+Достаточно написать команду /{CREATE_USER_COMMAND}
+После того как вы создадите пользователя вы можете создать игру.
+Для этого напишите /{NEW_GAME_COMMAND}
+При создании новой игры - вам придет токен игровой сессии. Для начала игры - напишите своему другу четырёхзначный код
+⚠️ Второй игрок тоже должен иметь игровой аккаунт ⚠️
+📊 Хотите узнать игровую статистику пишите /{INFO_COMMAND} 📊 
+❔ Забыли вопрос? Смело пишите команду /{SEND_QUESTION_COMMAND} ❔ 
+Для повторения данного информационного сообщения пишите /{HELP_COMMAND}
+Также не забывайте что основные команды присутсвуют в цифровом меню
+""", parse_mode = "html")
 
 if __name__ == "__main__":
     database = ''

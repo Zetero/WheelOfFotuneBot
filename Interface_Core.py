@@ -1,15 +1,6 @@
 # -*- coding: utf-8 -*-
-from enum import Enum
 import re
 import Bot_Core
-
-class State(Enum):
-    EmptySession = -3
-    Loser = -2
-    Surrender = -1
-    NewLetter = 0
-    NextStep = 1
-    Winner = 2
 
 def NextRound(id, letter, database):
     answer, word = database.GetAnswerAndWord(id)
@@ -70,4 +61,5 @@ def NextRound(id, letter, database):
                 Bot_Core.SendMessage(player_2_id, f"Противник открыл все слово!\nПравильный ответ был: {answer}\nУвы, вы проиграли.")       
             else:
                 Bot_Core.SendMessage(player_2_id, "Вы победитель!")
+                database.WinGame(player_2_id, player_1_id, id_session)
                 Bot_Core.SendMessage(player_1_id, f"Противник открыл все слово!\nПравильный ответ был: {answer}\nУвы, вы проиграли.")
