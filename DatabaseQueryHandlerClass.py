@@ -27,7 +27,7 @@ class SQL_DB(DatabaseQueryHandler):
     def CreateDBs(self):
         if os.path.exists(self.DB_path + "\\DATABASEs"):
             shutil.rmtree(self.DB_path + "\\DATABASEs", ignore_errors = True)
-            print("DATABASE CLEAR")
+            #print("DATABASE CLEAR")
 
         if (os.path.exists(self.DB_path + "\\DATABASEs")) == False:
             os.mkdir(self.DB_path + "\\DATABASEs")
@@ -41,7 +41,7 @@ class SQL_DB(DatabaseQueryHandler):
                 state INT,
                 session TEXT);
             """)
-            print("USERS DATABASE CREATE")
+            #print("USERS DATABASE CREATE")
 
             cur.executescript("""
             CREATE TABLE IF NOT EXISTS sessions(
@@ -51,7 +51,7 @@ class SQL_DB(DatabaseQueryHandler):
                 player_1_id TEXT,
                 player_2_id TEXT);
             """)
-            print("USERS SESSIONS CREATE")
+            #print("USERS SESSIONS CREATE")
 
             cur.executescript("""
             CREATE TABLE IF NOT EXISTS questions(
@@ -59,10 +59,10 @@ class SQL_DB(DatabaseQueryHandler):
                 answer TEXT,
                 text_question TEXT);
             """)
-            print("USERS QUESTIONS CREATE")
+            #print("USERS QUESTIONS CREATE")
 
             self.QuestionTableFill()
-            print("QUESTION TABLE FILLED")
+            #print("QUESTION TABLE FILLED")
             
     def AddUserToDB(self, id):
         user_exists = self.ExistsInDB("users", id)
@@ -282,7 +282,7 @@ class SQL_DB(DatabaseQueryHandler):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"SELECT EXISTS(SELECT * FROM {table} WHERE id = '{id}')")
+        #print(f"SELECT EXISTS(SELECT * FROM {table} WHERE id = '{id}')")
         res = cur.execute(f"SELECT EXISTS(SELECT * FROM '{table}' WHERE id = '{id}')").fetchone()
         is_exists = res[0]
         conn.close()
@@ -301,7 +301,7 @@ class SQL_DB(DatabaseQueryHandler):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"SELECT {values} FROM {table} WHERE id = {id}")
+        #print(f"SELECT {values} FROM {table} WHERE id = {id}")
         res = cur.execute(f"SELECT {values} FROM {table} WHERE id = {id}").fetchone() 
         conn.close()
         return list(res)
@@ -310,7 +310,7 @@ class SQL_DB(DatabaseQueryHandler):
         conn = sqlite3.connect("DATABASEs\\Users-Sessions-Questions-Tables.db")
         conn.isolation_level = None
         cur = conn.cursor()
-        print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
+        #print(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         cur.execute(f"UPDATE {table} SET {changeable_field} = '{value}' WHERE id = '{id}'")
         conn.close()
 
@@ -323,9 +323,5 @@ class SQL_DB(DatabaseQueryHandler):
         with open(self.json_path, "r", encoding = "utf-8") as f:
             json_object = json.load(f)
         self.json_len = len(json_object)
-        # print(len(json_object))
-        # for field in range(0, self.json_len):
-        #     print(json_object[field]["id"])
-        #     self.InsertInTable("questions", str(json_object[field]["id"]), json_object[field]["answer"], json_object[field]["question"])
         cur.executemany("INSERT INTO questions VALUES (:id, :answer, :question)", json_object)
-        print("FAST FILL QUESTION TABLE")
+        #print("FAST FILL QUESTION TABLE")

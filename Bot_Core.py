@@ -14,7 +14,7 @@ SEND_QUESTION_COMMAND = "q"
 NEW_GAME_COMMAND = "ng"
 SURRENDER_COMMAND = "surrender"
 
-bot = telebot.TeleBot(token = "5402715304:AAGqXbYSTkiC6GCvD7OCUJP57dbW_-jK704")
+bot = telebot.TeleBot(token = "")
 database_engine = 'SQLLITE'
 database_path = os.path.dirname(__file__)
 first_launch = "N"
